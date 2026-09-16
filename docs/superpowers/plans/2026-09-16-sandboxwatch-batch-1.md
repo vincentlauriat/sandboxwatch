@@ -3275,10 +3275,15 @@ git add .github README.md docs/getting-started.md
 git commit -m "ci: run swift test and a release build; document batch 1"
 ```
 
-**Stop here.** This repository has no `origin` — it was created with `git init` and never
-given a remote. Do not invent one: ask Vincent where it should live and how he wants the
-branch integrated (`~/DevApps/CLAUDE.md`: ask for the preferred git strategy before pushing).
-Until then the work stays on `feat/batch-1-kit`, and the CI workflow is committed but dormant.
+Then push the branch and open the pull request:
+
+```bash
+git push -u origin feat/batch-1-kit
+gh pr create --base main --title "Batch 1: kit and read-only CLI" --fill
+```
+
+The remote is `https://github.com/vincentlauriat/sandboxwatch` (public, settled 2026-09-16).
+Never push to `main` directly. Do not merge the PR without Vincent's review.
 
 ---
 
