@@ -9,6 +9,6 @@ struct SBW: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "sbw",
         abstract: "Read the state of your Azure sandboxes, and what changed since last time.",
-        subcommands: [SandboxCommand.self]
+        subcommands: [SandboxCommand.self, StatusCommand.self, DoctorCommand.self, ChangesCommand.self]
     )
 }
