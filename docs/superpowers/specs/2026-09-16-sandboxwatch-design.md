@@ -71,15 +71,16 @@ argument: an argument ends up in the shell history and in the process table.
 `SandboxStore` (YAML, mirroring `FleetStore`) and `TokenStore` (Keychain) are separate types with
 separate tests. `TokenStore` is a protocol so tests never touch the real Keychain.
 
-## 3. The Kit — two mockable seams
+## 3. The Kit — three mockable seams
 
-Every side effect goes through one of two protocols, both mocked in tests. This is `hpm`'s
-`ProcessRunner` pattern, applied twice because there are two kinds of outside world here.
+Every side effect goes through a protocol, all of them mocked in tests. This is `hpm`'s
+`ProcessRunner` pattern, applied to each kind of outside world this project has.
 
 | Seam | Production | Test | Used for |
 |---|---|---|---|
 | `HTTPClient` | `URLSessionHTTPClient` | `MockHTTPClient` | the sandbox API |
 | `ProcessRunner` | `SystemProcessRunner` | `MockProcessRunner` | `az` |
+| `TokenStore` | `KeychainTokenStore` | `InMemoryTokenStore` | the token |
 
 `ProcessRunner` takes an **exact argument array**, never a shell string. There is no code path that
 builds a command by interpolation.
@@ -104,18 +105,31 @@ So in the Kit's model, a section is:
 ```swift
 /// A collected section. There is no stored `data` property: the payload lives inside `.ok`,
 /// so it cannot be read without first establishing that the collection succeeded.
-public enum Section<T> {
-    case ok(T, durationMs: Int)
-    case denied(message: String?)
-    case error(message: String?)
+public struct Section<T> {
+    public let outcome: Outcome
+    public let durationMs: Int      // the envelope carries it on every status, so the model does too
+
+    public enum Outcome {
+        case ok(T)
+        case denied(message: String?)
+        case error(message: String?)
+    }
 }
 ```
 
-The payload is unreachable without switching on the case. Rendering a denied section as empty data is not
+The payload is unreachable without switching on `outcome`. `durationMs` stays a sibling, because
+the documented envelope carries it on `denied` and `error` too — dropping it on two cases out of
+three would make `SandboxAPIContract` a partial model of the contract it claims to hold. Rendering a denied section as empty data is not
 a discipline the UI has to remember — it does not compile. A test asserts that a `denied` governance
 section renders as an explanation, never as a count.
 
 ## 4. Reading
+
+**Which route each surface calls.** The server offers `/api/v1/apps` for "a client that polls often
+and does not need the rest" — that is the menu bar's five-minute refresh, which needs app state and
+probes and nothing else. So: the menu bar polls `/apps` and `/changes`; `sbw status`, `sbw doctor`
+and the control center read the full `/snapshot`. A menu bar pulling a complete snapshot per sandbox
+every five minutes would be the avoidable waste that route exists to prevent.
 
 `sbw status [name | --all]` — one row per sandbox: snapshot age, per-collector status, apps up/down,
 budget percentage, number of changes in the last 24 h. `--all` runs in parallel, output grouped.
@@ -136,8 +150,10 @@ exactly the half-hour of wrong readings the server project was written after.
 
 ## 5. Changes — the cursor
 
-`sbw changes <name> [--since <iso>] [--limit n]` prints the change log. `sbw watch [--all]` polls and
-prints transitions as they appear.
+`sbw changes <name> [--since <iso>] [--limit n]` prints the change log and advances the cursor —
+batch 1. `sbw watch [--all]`, which polls and prints transitions as they appear, is batch 2: it is
+the command-line half of the same transition-detection logic the menu bar needs, and building it
+twice is how the two drift apart.
 
 `/api/v1/changes` returns newest first, `?limit=` in 1–500 (clamped, not rejected), default 50. Two
 traps follow from that shape, both handled in the Kit rather than discovered later:
@@ -176,7 +192,11 @@ values. Without this, `sbw restart api` can restart a same-named web app in a di
 **Guard 2 — freshness.** The snapshot can be ten minutes old. Every action chains
 `POST /api/v1/refresh` → re-read → confirmation prompt showing `ageSeconds` and the target's current
 state. The server provides both primitives; refresh is rate-limited to once per 30 s and returns the
-current snapshot with `X-Refresh-Skipped: true` rather than an error, so this is safe to call.
+current snapshot with `X-Refresh-Skipped: true` rather than an error, so this is safe to call — but
+that header must reach the prompt. Two actions in quick succession mean the second refresh silently
+no-ops, and a confirmation that stayed silent about it would imply freshly verified state, which is
+the one thing this guard exists to guarantee. When `X-Refresh-Skipped` is present the confirmation
+says so, next to `ageSeconds`.
 
 **Guard 3 — non-interactivity.** Every invocation carries `--only-show-errors --output json`, and a
 preflight fails fast on "not logged in" instead of triggering a device-code flow. From a menu bar app
@@ -227,7 +247,7 @@ Each is independently useful and shippable.
 | Batch | Contents |
 |---|---|
 | **1** | Kit + read-only CLI: inventory, Keychain, `status`, `doctor`, `changes` |
-| **2** | Menu bar app, change notifications on transition |
+| **2** | Transition detection, `sbw watch`, menu bar app, notifications on transition |
 | **3** | `az` write actions with the three guards, in CLI and app |
 | **4** | Control center window |
 
