@@ -2724,14 +2724,29 @@ enum SandboxAdmin {
             throw SandboxWatchError("the token is empty")
         }
 
-        // The token goes in first. The other order leaves the inventory holding a sandbox with
-        // no token when the keychain write fails, and the repair the operator is told to run —
-        // `sbw sandbox add <name>` — then fails with "already exists".
+        // Reject a duplicate name before writing anything. Discovering it after the token is
+        // written would mean undoing that write — and the token now sitting there belongs to
+        // the sandbox that already exists, so "undo" would destroy working configuration.
+        guard try !store.load().sandboxes.contains(where: { $0.name == name }) else {
+            throw SandboxWatchError("sandbox '\(name)' already exists — remove it first, or pick another name")
+        }
+
+        // The token goes in first: the other order leaves the inventory holding a sandbox with
+        // no token when the keychain write fails, and the repair the operator is then told to
+        // run — `sbw sandbox add <name>` — would fail with "already exists".
+        //
+        // The rollback restores what was there rather than deleting, so a failure here can
+        // never leave the keychain emptier than it found it.
+        let previous = try tokens.token(for: name)
         try tokens.setToken(trimmed, for: name)
         do {
             try store.add(Sandbox(name: name, url: parsed, notes: notes))
         } catch {
-            try? tokens.removeToken(for: name)
+            if let previous {
+                try? tokens.setToken(previous, for: name)
+            } else {
+                try? tokens.removeToken(for: name)
+            }
             throw error
         }
         return "added '\(name)' (\(parsed.absoluteString)); token stored in the keychain"
