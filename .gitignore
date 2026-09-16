@@ -1,0 +1,23 @@
+# Docs de travail (journal de session, non versionnés)
+COMMANDS.md
+MEMORY.md
+CHANGES.md
+TODOS.md
+PLAN.md
+
+# OMC state
+.omc/
+
+# Release artifacts (motifs sans slash initial : valables à la racine et dans release/)
+*.dmg
+*.zip
+*.tar.gz
+
+# Swift
+.build/
+.swiftpm/
+App/build/
+DerivedData/
+
+# Divers
+.DS_Store
