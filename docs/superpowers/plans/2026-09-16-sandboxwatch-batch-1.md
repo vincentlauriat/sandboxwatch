@@ -44,8 +44,16 @@
 ```swift
 import XCTest
 @testable import SandboxWatchKit
+@testable import sbw
 
 final class ScaffoldTests: XCTestCase {
+    // The test target depends on an executable target carrying `@main`. That works, and
+    // HomePortManager relies on it, but it is the one structural assumption in Package.swift —
+    // exercise it in task 1 rather than discovering it wrong at task 12.
+    func testTheCLITargetIsImportable() {
+        XCTAssertEqual(SBW.configuration.commandName, "sbw")
+    }
+
     func testErrorCarriesItsMessage() {
         let error = SandboxWatchError("unknown sandbox 'dev'")
         XCTAssertEqual(error.message, "unknown sandbox 'dev'")
@@ -160,7 +168,7 @@ struct SBW: AsyncParsableCommand {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `swift test`
-Expected: PASS — 3 tests.
+Expected: PASS — 4 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1846,6 +1854,17 @@ final class ChangeCursorTests: XCTestCase {
         XCTAssertEqual(scan.newEvents, [page[0], page[1]])
     }
 
+    // Pins the one deliberate compromise: with the marked event pruned, a sibling sharing its
+    // instant is treated as already seen rather than re-announced. If this test ever has to
+    // change, the comment in `scan` is what to read first.
+    func testTiesAtAPrunedMarkAreTreatedAsAlreadySeen() {
+        let page = [event(300), event(100, "role_added", "bob")]
+        let scan = ChangeCursor.scan(page: page, since: event(100, "role_added", "alice").mark)
+
+        XCTAssertFalse(scan.overflowed)
+        XCTAssertEqual(scan.newEvents, [page[0]])
+    }
+
     func testWideningStopsAtTheServersCeiling() {
         XCTAssertEqual(ChangeCursor.nextLimit(after: 50), 200)
         XCTAssertEqual(ChangeCursor.nextLimit(after: 200), 500)
@@ -1966,6 +1985,11 @@ public enum ChangeCursor {
 
         // We reached back past the mark's instant, so nothing was lost. The marked event
         // itself is simply gone — pruned, or the mark predates the log.
+        //
+        // This is the one path that compares time alone, and it therefore drops any sibling
+        // that shared the marked event's instant. That is deliberate: once the marked event is
+        // gone there is nothing left to order its ties against, and re-announcing a change the
+        // operator has already seen is the worse of the two errors here.
         return CursorScan(
             newEvents: page.filter { $0.at > mark.at }, overflowed: false, newest: newest)
     }
@@ -2619,6 +2643,20 @@ final class SandboxCommandsTests: XCTestCase {
         XCTAssertNil(try tokens.token(for: "dev"))
     }
 
+    // A failed inventory write must not leave an orphan token behind: nothing else would
+    // ever clean it up, and the next `add` would silently reuse it.
+    func testAddLeavesNoOrphanTokenWhenTheInventoryRejectsTheName() throws {
+        _ = try SandboxAdmin.add(name: "dev", url: "https://dev.azurewebsites.net", notes: nil,
+                                 token: "first", store: store, tokens: tokens)
+
+        XCTAssertThrowsError(try SandboxAdmin.add(
+            name: "dev", url: "https://other.azurewebsites.net", notes: nil,
+            token: "second", store: store, tokens: tokens))
+
+        // The pre-existing token survives; the rejected one did not replace it.
+        XCTAssertEqual(try tokens.token(for: "dev"), "first")
+    }
+
     func testRemovingAnUnknownSandboxSaysSo() {
         XCTAssertThrowsError(try SandboxAdmin.remove(name: "ghost", store: store, tokens: tokens)) { error in
             XCTAssertTrue("\(error)".contains("ghost"))
@@ -2643,6 +2681,24 @@ import SandboxWatchKit
 
 /// The decisions behind `sbw sandbox …`, separated from ArgumentParser so they can be tested
 /// without spawning a process.
+/// Reads one line with terminal echo off, so the token is not left on screen — and falls back
+/// to a plain read when stdin is not a terminal (a pipe, a test, CI), where there is no echo
+/// to disable. `readLine()` alone would echo: never promise otherwise in the prompt.
+func readSecretLine() -> String? {
+    guard isatty(STDIN_FILENO) == 1 else { return readLine(strippingNewline: true) }
+
+    var original = termios()
+    guard tcgetattr(STDIN_FILENO, &original) == 0 else { return readLine(strippingNewline: true) }
+    var quiet = original
+    quiet.c_lflag &= ~tcflag_t(ECHO)
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &quiet)
+    defer {
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &original)
+        FileHandle.standardError.write(Data("\n".utf8))
+    }
+    return readLine(strippingNewline: true)
+}
+
 enum SandboxAdmin {
     static func add(
         name: String, url: String, notes: String?, token: String,
@@ -2661,8 +2717,16 @@ enum SandboxAdmin {
             throw SandboxWatchError("the token is empty")
         }
 
-        try store.add(Sandbox(name: name, url: parsed, notes: notes))
+        // The token goes in first. The other order leaves the inventory holding a sandbox with
+        // no token when the keychain write fails, and the repair the operator is told to run —
+        // `sbw sandbox add <name>` — then fails with "already exists".
         try tokens.setToken(trimmed, for: name)
+        do {
+            try store.add(Sandbox(name: name, url: parsed, notes: notes))
+        } catch {
+            try? tokens.removeToken(for: name)
+            throw error
+        }
         return "added '\(name)' (\(parsed.absoluteString)); token stored in the keychain"
     }
 
@@ -2704,9 +2768,9 @@ struct SandboxCommand: ParsableCommand {
 
         func run() throws {
             // An argument would land in the shell history and in the process table, where
-            // anyone on the machine can read it.
-            FileHandle.standardError.write(Data("Token for '\(name)' (input is not echoed by the terminal): ".utf8))
-            guard let token = readLine(strippingNewline: true) else {
+            // anyone on the machine can read it. stdin keeps it out of both.
+            FileHandle.standardError.write(Data("Token for '\(name)': ".utf8))
+            guard let token = readSecretLine() else {
                 throw SandboxWatchError("no token read from stdin")
             }
             print(try SandboxAdmin.add(name: name, url: url, notes: notes, token: token,
@@ -3128,6 +3192,9 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      # Printed first on purpose: local development is on Swift 6.4 / macOS 27 while this
+      # runner ships an older toolchain. Tools-version 5.9 should carry it — but when CI first
+      # goes red, read this line before suspecting the code.
       - name: Show toolchain
         run: swift --version
       - name: Test
@@ -3201,15 +3268,17 @@ Replace the `> **Status: design approved…**` block with:
 
 And mark the batch table's first row as done by prefixing it with `✅ `.
 
-- [ ] **Step 5: Commit and open the pull request**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add .github README.md docs/getting-started.md
 git commit -m "ci: run swift test and a release build; document batch 1"
-git push -u origin feat/batch-1-kit
 ```
 
-Then open a PR against `main`. Do not merge without review.
+**Stop here.** This repository has no `origin` — it was created with `git init` and never
+given a remote. Do not invent one: ask Vincent where it should live and how he wants the
+branch integrated (`~/DevApps/CLAUDE.md`: ask for the preferred git strategy before pushing).
+Until then the work stays on `feat/batch-1-kit`, and the CI workflow is committed but dormant.
 
 ---
 
