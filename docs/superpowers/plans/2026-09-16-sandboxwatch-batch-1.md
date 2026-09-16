@@ -2147,7 +2147,12 @@ final class DoctorTests: XCTestCase {
         let findings = await doctor(mock).diagnose()
 
         XCTAssertEqual(findings, [.notCollectedYet])
-        XCTAssertFalse(findings[0].nextStep!.lowercased().contains("redeploy"))
+        // Not "must not contain the word redeploy": the best possible message contains it,
+        // as a warning. What matters is that it tells the operator to wait and says plainly
+        // that redeploying is the wrong move.
+        let step = findings[0].nextStep!.lowercased()
+        XCTAssertTrue(step.contains("wait"))
+        XCTAssertTrue(step.contains("do not redeploy"))
     }
 
     func testHealthySnapshotReportsItsAge() async {
