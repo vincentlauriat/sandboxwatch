@@ -4,8 +4,18 @@
 
 ```bash
 swift build -c release
-ln -s "$PWD/.build/release/sbw" /usr/local/bin/sbw
+ln -sf "$PWD/.build/release/sbw" ~/.local/bin/sbw   # or any writable directory on your PATH
 ```
+
+`/usr/local/bin` also works but needs `sudo` on a stock macOS. Check what is already writable
+on your own PATH before reaching for it:
+
+```bash
+echo "$PATH" | tr ':' '\n' | while read -r d; do [ -w "$d" ] && echo "$d"; done
+```
+
+The symlink points into `.build/release`, so a later `swift build -c release` updates the
+installed command with no second step.
 
 ## Declare a sandbox
 
