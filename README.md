@@ -11,15 +11,17 @@ The pair mirrors [Homeport](../../RaspberryTools/Homeport) /
 [HomePortManager](../../RaspberryTools/HomePortManager): an agent on the machine, a manager on the
 Mac.
 
-> **Status: design approved, implementation not started.**
-> See [`docs/superpowers/specs/2026-09-16-sandboxwatch-design.md`](docs/superpowers/specs/2026-09-16-sandboxwatch-design.md).
+> **Status: batch 1 shipped** — `SandboxWatchKit` and a read-only `sbw` CLI.
+> See [`docs/getting-started.md`](docs/getting-started.md), and
+> [`docs/superpowers/specs/2026-09-16-sandboxwatch-design.md`](docs/superpowers/specs/2026-09-16-sandboxwatch-design.md)
+> for the design the remaining batches follow.
 
 ## Planned shape
 
 | Batch | Contents |
 |---|---|
-| 1 | `SandboxWatchKit` + read-only CLI: inventory, Keychain, `status`, `doctor`, `changes` |
-| 2 | Menu bar app, change notifications on transition only |
+| ✅ 1 | `SandboxWatchKit` + read-only CLI: inventory, Keychain, `status`, `doctor`, `changes` |
+| 2 | Transition detection, `sbw watch`, menu bar app, notifications on transition only |
 | 3 | `start` / `stop` / `restart` via the local `az` CLI, with subscription, freshness and non-interactivity guards |
 | 4 | Control center window |
 

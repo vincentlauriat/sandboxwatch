@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      # Printed first on purpose: local development is on Swift 6.4 / macOS 27 while this
+      # runner ships an older toolchain. Tools-version 5.9 should carry it — but when CI first
+      # goes red, read this line before suspecting the code.
+      - name: Show toolchain
+        run: swift --version
+      - name: Test
+        run: swift test
+      - name: Build release
+        run: swift build -c release
