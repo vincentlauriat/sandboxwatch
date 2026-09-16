@@ -27,6 +27,11 @@ public struct SandboxAPIClient {
         try await get(.apps, as: AppsResponse.self)
     }
 
+    public func changes(limit: Int = SandboxAPI.defaultChangeLimit) async throws -> [ChangeEvent] {
+        struct Envelope: Decodable { let limit: Int; let events: [ChangeEvent] }
+        return try await get(.changes(limit: limit), as: Envelope.self).events
+    }
+
     public func health() async throws -> Health {
         try await get(.healthz, as: Health.self)
     }

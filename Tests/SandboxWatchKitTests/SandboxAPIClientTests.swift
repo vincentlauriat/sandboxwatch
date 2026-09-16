@@ -66,6 +66,21 @@ final class SandboxAPIClientTests: XCTestCase {
         }
     }
 
+    func testChangesUnwrapsTheEnvelopeAndKeepsOrder() async throws {
+        let mock = MockHTTPClient()
+        mock.stub(path: "/api/v1/changes", status: 200, json: """
+        { "limit": 50, "events": [
+          {"at":"2026-09-16T09:00:00.000Z","type":"role_added","subject":"alice"},
+          {"at":"2026-09-16T08:00:00.000Z","type":"probe_status_changed","subject":"api"}
+        ] }
+        """)
+
+        let events = try await client(mock).changes(limit: 50)
+
+        XCTAssertEqual(events.map(\.type), ["role_added", "probe_status_changed"])
+        XCTAssertEqual(mock.requests.first?.url.query, "limit=50")
+    }
+
     func testAppsUsesTheNarrowRoute() async throws {
         let mock = MockHTTPClient()
         mock.stub(path: "/api/v1/apps", status: 200, json: """
