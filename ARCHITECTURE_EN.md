@@ -2,6 +2,10 @@
 
 Source of truth. `ARCHITECTURE.md` is its French mirror and must be edited in the same turn.
 
+**What exists today: batch 1** — `SandboxWatchKit` and the read-only `sbw` CLI. Rows below
+marked *(batch 3)* or *(batch 4)* are designed, not built; they are here because the shape of
+the Kit assumes them, not because you will find them in `Sources/`.
+
 ## Position in the family
 
 ```
@@ -38,20 +42,23 @@ bounded to a Reader role. Writing uses Vincent's own `az` login. The token can n
 | `Snapshot` model | Sections whose payload is unreachable without switching on their status. | — |
 | `ChangeCursor` | Per-sandbox `(at, type, subject)` cursor, with overflow detection. | — |
 | `Doctor` | The five-verdict diagnosis. | `SandboxAPIClient` |
-| `AzRunner` | `az` invocation with the three guards. | `ProcessRunner`, `SandboxAPIClient` |
-| `ActionJournal` | Append-only local log of write actions. | — |
+| `AzRunner` *(batch 3)* | `az` invocation with the three guards. | `ProcessRunner`, `SandboxAPIClient` |
+| `ActionJournal` *(batch 3)* | Append-only local log of write actions. | — |
 | `sbw` | Thin CLI over the Kit. | ArgumentParser |
-| `App` | Menu bar + control center, links the Kit locally. | SwiftUI |
+| `App` *(batches 2 and 4)* | Menu bar + control center, links the Kit locally. | SwiftUI |
 
 ## Seams
 
 Every side effect goes through a protocol, mocked in tests:
 
 - `HTTPClient` → `URLSessionHTTPClient` (prod) / `MockHTTPClient` (test)
-- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test)
 - `TokenStore` → `KeychainTokenStore` (prod) / `InMemoryTokenStore` (test)
+- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test) — *batch 3, when
+  `az` arrives; nothing in batch 1 runs a subprocess*
 
-`swift test` therefore touches no network, no Keychain and no `az`. This is HomePortManager's pattern
+`swift test` therefore touches no network, no Keychain and no `az`. The two consequences worth
+stating plainly: `KeychainTokenStore` and `URLSessionHTTPClient` are the only types no test
+executes, so they are proved by use rather than by the suite. This is HomePortManager's pattern
 (`ProcessRunner` mocked throughout `HomePortKitTests`), applied to the two kinds of outside world
 this project has.
 
@@ -74,4 +81,4 @@ open a device-code flow that hangs forever with no TTY). Each guard is a test, n
 | `~/.config/sbw/sandboxes.yaml` | Inventory: name, URL, notes | no |
 | Keychain `fr.lauriat.sandboxwatch` | One token per sandbox | **yes** |
 | `~/.config/sbw/cursors/<name>.json` | Last change seen | no |
-| `~/.config/sbw/actions.jsonl` | Write-action journal | no |
+| `~/.config/sbw/actions.jsonl` *(batch 3)* | Write-action journal | no |

@@ -923,7 +923,9 @@ final class SnapshotDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.apps.fold(ok: { $0.map(\.name) }, unavailable: { _ in [] }), ["api"])
         XCTAssertEqual(snapshot.probes.fold(ok: { $0.first?.statusCode }, unavailable: { _ in nil }), 200)
         XCTAssertEqual(snapshot.budget.fold(ok: { $0.percentage }, unavailable: { _ in nil }), 25)
-        XCTAssertEqual(snapshot.identity.fold(ok: { $0.subscriptionId }, unavailable: { _ in nil }), "sub-1")
+        // `ok` returns a non-optional String here, so the unavailable branch must match it:
+        // `fold` deliberately forces both branches to agree on one type.
+        XCTAssertEqual(snapshot.identity.fold(ok: { $0.subscriptionId }, unavailable: { $0 }), "sub-1")
     }
 
     func testDeniedGovernanceDoesNotLookLikeAnEmptyGovernance() throws {
@@ -2145,7 +2147,12 @@ final class DoctorTests: XCTestCase {
         let findings = await doctor(mock).diagnose()
 
         XCTAssertEqual(findings, [.notCollectedYet])
-        XCTAssertFalse(findings[0].nextStep!.lowercased().contains("redeploy"))
+        // Not "must not contain the word redeploy": the best possible message contains it,
+        // as a warning. What matters is that it tells the operator to wait and says plainly
+        // that redeploying is the wrong move.
+        let step = findings[0].nextStep!.lowercased()
+        XCTAssertTrue(step.contains("wait"))
+        XCTAssertTrue(step.contains("do not redeploy"))
     }
 
     func testHealthySnapshotReportsItsAge() async {
@@ -2717,14 +2724,29 @@ enum SandboxAdmin {
             throw SandboxWatchError("the token is empty")
         }
 
-        // The token goes in first. The other order leaves the inventory holding a sandbox with
-        // no token when the keychain write fails, and the repair the operator is told to run —
-        // `sbw sandbox add <name>` — then fails with "already exists".
+        // Reject a duplicate name before writing anything. Discovering it after the token is
+        // written would mean undoing that write — and the token now sitting there belongs to
+        // the sandbox that already exists, so "undo" would destroy working configuration.
+        guard try !store.load().sandboxes.contains(where: { $0.name == name }) else {
+            throw SandboxWatchError("sandbox '\(name)' already exists — remove it first, or pick another name")
+        }
+
+        // The token goes in first: the other order leaves the inventory holding a sandbox with
+        // no token when the keychain write fails, and the repair the operator is then told to
+        // run — `sbw sandbox add <name>` — would fail with "already exists".
+        //
+        // The rollback restores what was there rather than deleting, so a failure here can
+        // never leave the keychain emptier than it found it.
+        let previous = try tokens.token(for: name)
         try tokens.setToken(trimmed, for: name)
         do {
             try store.add(Sandbox(name: name, url: parsed, notes: notes))
         } catch {
-            try? tokens.removeToken(for: name)
+            if let previous {
+                try? tokens.setToken(previous, for: name)
+            } else {
+                try? tokens.removeToken(for: name)
+            }
             throw error
         }
         return "added '\(name)' (\(parsed.absoluteString)); token stored in the keychain"
