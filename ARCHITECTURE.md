@@ -2,6 +2,10 @@
 
 Miroir français de `ARCHITECTURE_EN.md`, qui fait foi. Les deux s'éditent dans le même tour.
 
+**Ce qui existe aujourd'hui : le lot 1** — `SandboxWatchKit` et la CLI `sbw` en lecture seule.
+Les lignes marquées *(lot 3)* ou *(lot 4)* sont conçues, pas construites : elles figurent ici
+parce que la forme du Kit les suppose, pas parce qu'on les trouvera dans `Sources/`.
+
 ## Place dans la famille
 
 ```
@@ -39,20 +43,23 @@ jamais rien modifier.
 | Modèle `Snapshot` | Des sections dont la charge utile est inatteignable sans passer par leur statut. | — |
 | `ChangeCursor` | Curseur `(at, type, subject)` par sandbox, avec détection de débordement. | — |
 | `Doctor` | Le diagnostic à cinq verdicts. | `SandboxAPIClient` |
-| `AzRunner` | Invocation d'`az` avec les trois gardes. | `ProcessRunner`, `SandboxAPIClient` |
-| `ActionJournal` | Journal local append-only des actions d'écriture. | — |
+| `AzRunner` *(lot 3)* | Invocation d'`az` avec les trois gardes. | `ProcessRunner`, `SandboxAPIClient` |
+| `ActionJournal` *(lot 3)* | Journal local append-only des actions d'écriture. | — |
 | `sbw` | CLI mince au-dessus du Kit. | ArgumentParser |
-| `App` | Menu bar + control center, linke le Kit en local. | SwiftUI |
+| `App` *(lots 2 et 4)* | Menu bar + control center, linke le Kit en local. | SwiftUI |
 
 ## Seams
 
 Tout effet de bord passe par un protocole, mocké en test :
 
 - `HTTPClient` → `URLSessionHTTPClient` (prod) / `MockHTTPClient` (test)
-- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test)
 - `TokenStore` → `KeychainTokenStore` (prod) / `InMemoryTokenStore` (test)
+- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test) — *lot 3, quand
+  `az` arrivera ; rien dans le lot 1 ne lance de sous-processus*
 
-`swift test` ne touche donc ni le réseau, ni le Keychain, ni `az`. C'est le pattern de
+`swift test` ne touche donc ni le réseau, ni le Keychain, ni `az`. Les deux conséquences à
+énoncer franchement : `KeychainTokenStore` et `URLSessionHTTPClient` sont les seuls types
+qu'aucun test n'exécute — ils sont prouvés par l'usage, pas par la suite. C'est le pattern de
 HomePortManager (`ProcessRunner` mocké dans tout `HomePortKitTests`), appliqué aux deux formes de
 monde extérieur qu'a ce projet.
 
@@ -77,4 +84,4 @@ convention.
 | `~/.config/sbw/sandboxes.yaml` | Inventaire : nom, URL, notes | non |
 | Keychain `fr.lauriat.sandboxwatch` | Un token par sandbox | **oui** |
 | `~/.config/sbw/cursors/<nom>.json` | Dernier changement vu | non |
-| `~/.config/sbw/actions.jsonl` | Journal des actions d'écriture | non |
+| `~/.config/sbw/actions.jsonl` *(lot 3)* | Journal des actions d'écriture | non |
