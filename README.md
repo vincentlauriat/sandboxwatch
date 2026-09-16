@@ -12,6 +12,7 @@ The pair mirrors [Homeport](../../RaspberryTools/Homeport) /
 Mac.
 
 > **Status: batch 1 shipped** — `SandboxWatchKit` and a read-only `sbw` CLI.
+> Install: `swift build -c release && ln -sf "$PWD/.build/release/sbw" ~/.local/bin/sbw`.
 > See [`docs/getting-started.md`](docs/getting-started.md), and
 > [`docs/superpowers/specs/2026-09-16-sandboxwatch-design.md`](docs/superpowers/specs/2026-09-16-sandboxwatch-design.md)
 > for the design the remaining batches follow.
