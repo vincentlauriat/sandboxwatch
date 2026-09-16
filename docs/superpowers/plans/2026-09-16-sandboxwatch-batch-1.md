@@ -923,7 +923,9 @@ final class SnapshotDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.apps.fold(ok: { $0.map(\.name) }, unavailable: { _ in [] }), ["api"])
         XCTAssertEqual(snapshot.probes.fold(ok: { $0.first?.statusCode }, unavailable: { _ in nil }), 200)
         XCTAssertEqual(snapshot.budget.fold(ok: { $0.percentage }, unavailable: { _ in nil }), 25)
-        XCTAssertEqual(snapshot.identity.fold(ok: { $0.subscriptionId }, unavailable: { _ in nil }), "sub-1")
+        // `ok` returns a non-optional String here, so the unavailable branch must match it:
+        // `fold` deliberately forces both branches to agree on one type.
+        XCTAssertEqual(snapshot.identity.fold(ok: { $0.subscriptionId }, unavailable: { $0 }), "sub-1")
     }
 
     func testDeniedGovernanceDoesNotLookLikeAnEmptyGovernance() throws {
