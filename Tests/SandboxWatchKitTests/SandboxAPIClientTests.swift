@@ -88,7 +88,7 @@ final class SandboxAPIClientTests: XCTestCase {
           "collectedAt": "2026-09-16T08:00:00.000Z",
           "ageSeconds": 10,
           "apps": { "status": "ok", "data": [ { "name": "api", "state": "Running", "runtime": null, "httpsOnly": true, "url": null } ], "message": null, "durationMs": 5 },
-          "probes": { "status": "ok", "data": [ { "name": "api", "url": null, "statusCode": 200, "latencyMs": 12 } ], "message": null, "durationMs": 7 }
+          "probes": { "status": "ok", "data": [ { "app": "api", "url": null, "httpStatus": 200, "latencyMs": 12, "error": null } ], "message": null, "durationMs": 7 }
         }
         """)
 

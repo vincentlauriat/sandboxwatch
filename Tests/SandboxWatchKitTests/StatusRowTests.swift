@@ -27,7 +27,9 @@ final class StatusRowTests: XCTestCase {
     private let twoAppsOneStopped = #"""
     { "status": "ok", "data": [ { "name": "api", "state": "Running", "runtime": null, "httpsOnly": true, "url": null }, { "name": "web", "state": "Stopped", "runtime": null, "httpsOnly": true, "url": null } ], "message": null, "durationMs": 1 }
     """#
-    private let okBudget = #"{ "status": "ok", "data": { "amount": 50, "spend": 12.5, "percentage": 25, "thresholds": [] }, "message": null, "durationMs": 1 }"#
+    private let okBudget = #"{ "status": "ok", "data": [ { "name": "monthly", "amount": 50, "spent": 12.5, "percent": 25, "thresholds": [] } ], "message": null, "durationMs": 1 }"#
+    /// Two budgets, the second far tighter. The column must show the one closest to being blown.
+    private let twoBudgets = #"{ "status": "ok", "data": [ { "name": "monthly", "percent": 10 }, { "name": "quarterly", "percent": 95 } ], "message": null, "durationMs": 1 }"#
     private let okGovernance = #"{ "status": "ok", "data": {}, "message": null, "durationMs": 1 }"#
     private let deniedSection = #"{ "status": "denied", "data": null, "message": "AuthorizationFailed", "durationMs": 1 }"#
 
@@ -47,6 +49,13 @@ final class StatusRowTests: XCTestCase {
         let row = StatusRow.make(sandbox: "dev", response: try response(
             json(ageSeconds: 60, apps: twoAppsOneStopped, budget: okBudget, governance: okGovernance)))
         XCTAssertEqual(row.budget, "25%")
+    }
+
+    func testSeveralBudgetsShowTheTightestOne() throws {
+        // The wire sends a list. A second budget at 10% must never hide a first at 95%.
+        let row = StatusRow.make(sandbox: "dev", response: try response(
+            json(ageSeconds: 60, apps: twoAppsOneStopped, budget: twoBudgets, governance: okGovernance)))
+        XCTAssertEqual(row.budget, "95%")
     }
 
     // A denied section must never print as "0/0 up" or "0%". It prints why it is missing —

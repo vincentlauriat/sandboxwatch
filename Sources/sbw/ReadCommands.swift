@@ -78,7 +78,7 @@ enum ReadCommands {
                 case .notable: flag = "!"
                 case .informational: flag = " "
                 }
-                let detail = event.detail?["message"].map { " (\($0))" } ?? ""
+                let detail = (event.detail?["message"]?.text).map { " (\($0))" } ?? ""
                 lines.append("\(flag) \(formatter.string(from: event.at))  \(event.type)  \(event.subject)\(detail)")
             }
         }

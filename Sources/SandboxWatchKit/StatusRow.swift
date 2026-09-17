@@ -27,8 +27,12 @@ public struct StatusRow: Equatable {
             ok: { apps in "\(apps.filter(\.isRunning).count)/\(apps.count) up" },
             unavailable: { _ in "denied" })
 
+        // The wire sends a list. Show the budget closest to being blown — a second budget at
+        // 10% must never hide a first one at 95%.
         let budget = snapshot.budget.fold(
-            ok: { budget in budget.percentage.map { "\(Int($0))%" } ?? "—" },
+            ok: { budgets in
+                budgets.compactMap(\.percent).max().map { "\(Int($0))%" } ?? "—"
+            },
             unavailable: { _ in "denied" })
 
         let unavailable = snapshot.unavailableSections

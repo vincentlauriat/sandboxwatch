@@ -19,7 +19,7 @@ final class ReadCommandsTests: XCTestCase {
             "resources": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
             "plans": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
             "apps": { "status": "ok", "data": [ { "name": "api", "state": "Running", "runtime": null, "httpsOnly": true, "url": null } ], "message": null, "durationMs": 1 },
-            "budget": { "status": "ok", "data": { "amount": 50, "spend": 5, "percentage": 10, "thresholds": [] }, "message": null, "durationMs": 1 },
+            "budget": { "status": "ok", "data": [ { "name": "monthly", "amount": 50, "spent": 5, "percent": 10, "thresholds": [] } ], "message": null, "durationMs": 1 },
             "governance": { "status": "ok", "data": {}, "message": null, "durationMs": 1 },
             "probes": { "status": "ok", "data": [], "message": null, "durationMs": 1 }
           }
