@@ -16,6 +16,41 @@ public enum SandboxAPI {
         case healthz
     }
 
+    /// The twelve change types the server emits, and how serious each one is.
+    ///
+    /// **A dated fallback.** Since 2026-09-17 the server publishes `severity` on every event and
+    /// this table is not consulted; it exists only for a server older than that change. Treating
+    /// an absent field as "unknown" would demote `collector_access_lost` in the one case that
+    /// matters. Delete it once no such server is left.
+    ///
+    /// It lives here rather than in `ChangeEvent` because this type is the executable half of
+    /// `docs/api.md`, and shared vocabulary is exactly what a contract holds. A divergence then
+    /// breaks a test instead of a screen.
+    private static let fallbackSeverities: [String: ChangeSeverity] = [
+        "resource_added": .informational,
+        "resource_removed": .informational,
+        "app_state_changed": .informational,
+        "plan_tier_changed": .informational,
+        "probe_status_changed": .informational,
+
+        "role_added": .notable,
+        "role_removed": .notable,
+        "lock_added": .notable,
+        "lock_removed": .notable,
+        "budget_threshold_crossed": .notable,
+
+        "collector_access_lost": .critical,
+        "collector_access_restored": .critical,
+    ]
+
+    public static var eventTypes: Set<String> { Set(fallbackSeverities.keys) }
+
+    /// Never quieter than what is known: a type absent from the table reads as `notable`, so it
+    /// stays visible without being able to raise an alarm on its own.
+    public static func fallbackSeverity(forType type: String) -> ChangeSeverity {
+        fallbackSeverities[type] ?? .notable
+    }
+
     public static func requiresToken(_ route: Route) -> Bool {
         if case .healthz = route { return false }
         return true

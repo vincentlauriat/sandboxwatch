@@ -1,12 +1,22 @@
 import Foundation
 
-public enum ChangeSeverity: Int, Comparable, Codable {
+/// How serious a change is. The server judges this — it knows what a change *is* — and the
+/// client reads its verdict rather than re-deriving one.
+public enum ChangeSeverity: String, Comparable, Codable {
     case informational
     case notable
     case critical
 
+    private var rank: Int {
+        switch self {
+        case .informational: return 0
+        case .notable:       return 1
+        case .critical:      return 2
+        }
+    }
+
     public static func < (lhs: ChangeSeverity, rhs: ChangeSeverity) -> Bool {
-        lhs.rawValue < rhs.rawValue
+        lhs.rank < rhs.rank
     }
 }
 
@@ -64,20 +74,27 @@ public struct ChangeEvent: Decodable, Equatable {
     public let collector: String?
     public let detail: [String: JSONValue]?
 
+    /// What the server said, when it says it. A raw string rather than `ChangeSeverity` so a
+    /// value this client does not know cannot fail the whole decode.
+    private let publishedSeverity: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case at, type, subject, collector, detail
+        case publishedSeverity = "severity"
+    }
+
     public var mark: ChangeMark { ChangeMark(at: at, type: type, subject: subject) }
 
-    /// Losing or regaining collector access is the incident this project was written after:
-    /// a Contributor role moved over a weekend with no notification. It gets its own level, so
-    /// it is never queued behind a probe that flapped.
+    /// The server's verdict, or — against a server older than 2026-09-17 — the dated table in
+    /// `SandboxAPI`.
+    ///
+    /// A published value this client does not understand becomes `notable`: visible, never loud
+    /// enough to raise an alarm by itself, and never quiet enough to disappear. An *absent*
+    /// field is a different thing entirely and must not be treated the same way, or a
+    /// `collector_access_lost` from an older server would be demoted in the one case that
+    /// matters.
     public var severity: ChangeSeverity {
-        switch type {
-        case "collector_access_lost", "collector_access_restored":
-            return .critical
-        case "role_added", "role_removed", "lock_added", "lock_removed",
-             "deny_assignment_added", "deny_assignment_removed", "budget_threshold_crossed":
-            return .notable
-        default:
-            return .informational
-        }
+        guard let publishedSeverity else { return SandboxAPI.fallbackSeverity(forType: type) }
+        return ChangeSeverity(rawValue: publishedSeverity) ?? .notable
     }
 }

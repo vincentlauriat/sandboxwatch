@@ -88,4 +88,51 @@ final class ChangeEventTests: XCTestCase {
         XCTAssertEqual(event.mark.subject, "alice")
         XCTAssertEqual(event.mark.at, event.at)
     }
+
+    // MARK: - The server judges the content; the client reads its verdict
+
+    func testTheServersSeverityIsUsedWhenItSendsOne() throws {
+        // The rule the whole device rests on: a fact is computed where it is known, once.
+        // Promoting a type on the server must reclassify it here with no client release.
+        let event = try decode("""
+        {
+          "at": "2026-09-16T08:00:00.000Z",
+          "type": "probe_status_changed",
+          "subject": "api",
+          "severity": "critical"
+        }
+        """)
+
+        XCTAssertEqual(event.severity, .critical, "the local table would have said informational")
+    }
+
+    func testAnUnknownSeverityIsNotableNeverInformational() throws {
+        // The forbidden direction of error: a value this client does not understand must stay
+        // visible, and must never be quiet enough to disappear behind a blank marker.
+        let event = try decode("""
+        {"at":"2026-09-16T08:00:00.000Z","type":"role_added","subject":"p","severity":"emergency"}
+        """)
+
+        XCTAssertEqual(event.severity, .notable)
+    }
+
+    func testAnOlderServerFallsBackToTheDatedTable() throws {
+        // No `severity` field: a server predating 2026-09-17. Treating that absence as
+        // "unknown -> notable" would demote collector_access_lost in the one case that matters.
+        let event = try decode("""
+        {"at":"2026-09-16T08:00:00.000Z","type":"collector_access_lost","subject":"governance"}
+        """)
+
+        XCTAssertEqual(event.severity, .critical)
+    }
+
+    func testTheFallbackTableCarriesExactlyTheTwelveTypesTheServerEmits() {
+        XCTAssertEqual(SandboxAPI.eventTypes.count, 12)
+        XCTAssertFalse(SandboxAPI.eventTypes.contains("deny_assignment_added"))
+        XCTAssertFalse(SandboxAPI.eventTypes.contains("deny_assignment_removed"))
+        XCTAssertEqual(SandboxAPI.fallbackSeverity(forType: "collector_access_lost"), .critical)
+        XCTAssertEqual(SandboxAPI.fallbackSeverity(forType: "role_added"), .notable)
+        XCTAssertEqual(SandboxAPI.fallbackSeverity(forType: "probe_status_changed"), .informational)
+        XCTAssertEqual(SandboxAPI.fallbackSeverity(forType: "something_new"), .notable)
+    }
 }
