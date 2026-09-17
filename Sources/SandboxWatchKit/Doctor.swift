@@ -13,6 +13,27 @@ public struct Doctor {
         case sectionsUnavailable([String])
         case healthy(ageSeconds: Double)
 
+        /// A finding stripped of its payload, so two observations can be compared.
+        ///
+        /// `.stale` and `.healthy` carry an age that changes at every reading. Comparing
+        /// findings themselves would therefore report a transition on every poll, forever.
+        public enum Kind: String, Equatable, Hashable, CaseIterable, Codable {
+            case unreachable, unauthorised, notCollectedYet, serverProblem
+            case stale, sectionsUnavailable, healthy
+        }
+
+        public var kind: Kind {
+            switch self {
+            case .unreachable:         return .unreachable
+            case .unauthorised:        return .unauthorised
+            case .notCollectedYet:     return .notCollectedYet
+            case .serverProblem:       return .serverProblem
+            case .stale:               return .stale
+            case .sectionsUnavailable: return .sectionsUnavailable
+            case .healthy:             return .healthy
+            }
+        }
+
         public var isProblem: Bool {
             if case .healthy = self { return false }
             return true
