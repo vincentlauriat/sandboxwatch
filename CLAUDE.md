@@ -1,0 +1,94 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+```bash
+swift build                                   # debug build
+swift test                                    # full suite; touches no network, no Keychain, no `az`
+swift test --filter DoctorTests               # one test class
+swift test --filter SandboxWatchKitTests.DoctorTests/testStaleSnapshotIsReportedBeforeItsDeniedSections
+swift build -c release                        # what CI also runs, and what the installed `sbw` points at
+```
+
+`~/.local/bin/sbw` is a symlink into `.build/release/sbw`, so `swift build -c release` updates the
+installed command with no second step.
+
+CI (`.github/workflows/ci.yml`, `macos-15`) runs `swift test` then `swift build -c release`, and
+prints `swift --version` first on purpose: local development is on a newer toolchain than the
+runner. `swift-tools-version:5.9` absorbs that gap — read the printed version before suspecting
+the code when CI goes red.
+
+## Layout
+
+- `Sources/SandboxWatchKit` — every decision worth testing.
+- `Sources/sbw` — thin ArgumentParser shell over the Kit.
+- `Tests/SandboxWatchKitTests` — XCTest, `@testable import`, depends on **both** targets.
+
+The test target links the `sbw` executable target as well as the Kit, so CLI-level decisions
+(`SandboxAdmin`, `ReadCommands`) are tested without spawning a process. Keep that possible: put
+the decision in a plain `enum` namespace and leave the `ParsableCommand` struct a wrapper that
+only parses arguments and injects dependencies (`ReadCommands.status(sandboxes:clientFor:)` is
+the shape).
+
+## Invariants
+
+These are the point of the project, not style. Each is currently enforced by a test.
+
+**A section's payload is unreachable without its status.** `Section<T>` has no stored `data` and
+no `T?` accessor; the payload lives inside `.ok`, and `fold(ok:unavailable:)` is the only way in.
+Rendering a `denied` section as `0 role assignments` / `0%` / `0/0 up` reintroduces from the
+client the exact false alarm the server was built to prevent — `denied` is what a revoked Reader
+role looks like. An unknown collector status decodes to `.error`, never `.ok`.
+
+**Server and network states are values, not thrown errors.** `SandboxWatchError` is thrown only
+for conditions the operator caused and can fix (unknown sandbox name, unparseable inventory).
+A refused token, a server with no snapshot yet, a stale or denied section are `APIFailure`,
+`Section.Outcome` and `Doctor.Finding` — things the CLI and the app display and explain.
+
+**Two identities, on purpose.** Reads use the sandbox token, which the server bounds to Reader.
+Writes (batch 3, `az`) run under Vincent's own login. Never call a mutating route with the token.
+
+**The change cursor is `(at, type, subject)`**, not `at` alone, because timestamps tie. A page
+whose oldest event is still newer than the mark means events were lost: `CursorScan.overflowed`,
+widened through `ChangeCursor.nextLimit`, and reported to the operator when the server's ceiling
+is reached. Silent truncation is the bug being avoided.
+
+**`SandboxAPI` is the single place routes, header names, limits and status codes live** — the
+executable half of `../AzureSandboxManager/docs/api.md`. A server change should break a test,
+not a screen.
+
+**`SandboxJSON.decoder`, never `JSONDecoder` with `.iso8601`.** The built-in strategy rejects
+fractional seconds and the server emits them; swapping it back fails on every snapshot.
+
+## Seams
+
+Side effects go through protocols mocked in tests: `HTTPClient` (`URLSessionHTTPClient` /
+`MockHTTPClient`), `TokenStore` (`KeychainTokenStore` / `InMemoryTokenStore`), and — batch 3 —
+`ProcessRunner` for `az`. The consequence worth knowing: `KeychainTokenStore` and
+`URLSessionHTTPClient` are the only two types the suite never executes. They are proved by use.
+Never let a test reach the real Keychain; the suite must not prompt for a login password.
+
+## State on disk
+
+| Path | Contents | Secret |
+|---|---|---|
+| `~/.config/sbw/sandboxes.yaml` | Inventory: name, URL, notes | no |
+| Keychain `fr.lauriat.sandboxwatch` | One token per sandbox | **yes** |
+| `~/.config/sbw/cursors/<name>.json` | Last change seen | no |
+
+The token never goes in the YAML and never travels as a command-line argument (shell history,
+process table) — `sbw sandbox add` reads it from stdin with echo off.
+
+## What exists
+
+Batch 1 only: the Kit and the read-only CLI (`sandbox add/list/remove`, `status`, `doctor`,
+`changes`). `AzRunner`, `ActionJournal` and the SwiftUI app appear in `ARCHITECTURE_EN.md`
+because the Kit's shape assumes them — they are not in `Sources/`. Batches: 2 = transition
+detection + menu bar, 3 = `az` actions behind three guards (subscription, freshness,
+non-interactivity), 4 = control center.
+
+Design and rationale: `docs/superpowers/specs/2026-09-16-sandboxwatch-design.md` and
+`ARCHITECTURE_EN.md` (source of truth; `ARCHITECTURE.md` is its French mirror). The server this
+client reads is `../AzureSandboxManager`.

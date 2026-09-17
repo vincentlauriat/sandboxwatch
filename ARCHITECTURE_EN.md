@@ -6,6 +6,19 @@ Source of truth. `ARCHITECTURE.md` is its French mirror and must be edited in th
 marked *(batch 3)* or *(batch 4)* are designed, not built; they are here because the shape of
 the Kit assumes them, not because you will find them in `Sources/`.
 
+## Diagrams
+
+Two interactive diagrams stand beside this document. Both are self-contained HTML — open them in
+a browser; the specification each one is generated from sits next to it.
+
+| Diagram | What it shows |
+|---|---|
+| [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) | The two transports and the two identities: what reads under the Reader-bounded sandbox token, what writes under your own `az` login, and which boxes are designed rather than built. |
+| [`docs/diagrams/change-cursor.html`](docs/diagrams/change-cursor.html) | How `sbw changes` decides what is new — the `(at, type, subject)` mark, the widening ladder after an overflow, and the report that replaces a silent truncation. |
+
+To regenerate one, edit its `.json` and run it back through the `archify` skill. The HTML is the
+delivered artifact, not a file to hand-edit.
+
 ## Position in the family
 
 ```

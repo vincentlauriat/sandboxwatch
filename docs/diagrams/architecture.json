@@ -1,0 +1,312 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "SandboxWatch — two transports, two identities",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/vincentlauriat/sandboxwatch",
+      "revision": "2ccc619c2eafc21b852d5d513d60f3071e3206ba"
+    },
+    "views": [
+      {
+        "id": "read-path",
+        "label": "Read path",
+        "focus": [
+          "apps",
+          "manager",
+          "kit",
+          "cli"
+        ],
+        "note": "The snapshot travels from the resource group to your terminal, and never carries a write."
+      },
+      {
+        "id": "two-identities",
+        "label": "Two identities",
+        "focus": [
+          "keychain",
+          "kit",
+          "cli",
+          "az",
+          "apps"
+        ],
+        "note": "Reading uses the Reader-bounded sandbox token; writing uses your own az login."
+      },
+      {
+        "id": "state-on-disk",
+        "label": "State on disk",
+        "focus": [
+          "keychain",
+          "inventory",
+          "kit"
+        ],
+        "note": "Only the Keychain holds a secret; the YAML inventory and the cursors hold none."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "apps",
+      "type": "cloud",
+      "label": "Web apps & plans",
+      "sublabel": "App Service",
+      "tag": "budget · roles · locks",
+      "pos": [
+        200,
+        310
+      ],
+      "size": [
+        170,
+        68
+      ],
+      "sources": [
+        {
+          "path": "ARCHITECTURE_EN.md",
+          "label": "Position in the family"
+        }
+      ]
+    },
+    {
+      "id": "manager",
+      "type": "backend",
+      "label": "AzureSandboxManager",
+      "sublabel": "Node 20 · managed identity",
+      "tag": "Reader role",
+      "pos": [
+        200,
+        110
+      ],
+      "size": [
+        180,
+        68
+      ]
+    },
+    {
+      "id": "kit",
+      "type": "backend",
+      "label": "SandboxWatchKit",
+      "sublabel": "model · contract · seams",
+      "pos": [
+        760,
+        310
+      ],
+      "size": [
+        170,
+        68
+      ],
+      "sources": [
+        {
+          "path": "Sources/SandboxWatchKit/SandboxAPIClient.swift",
+          "label": "SandboxAPIClient"
+        }
+      ]
+    },
+    {
+      "id": "cli",
+      "type": "frontend",
+      "label": "sbw",
+      "sublabel": "status · doctor · changes",
+      "tag": "batch 1 — shipped",
+      "pos": [
+        1060,
+        310
+      ],
+      "size": [
+        170,
+        68
+      ],
+      "sources": [
+        {
+          "path": "Sources/sbw/ReadCommands.swift",
+          "label": "ReadCommands"
+        }
+      ]
+    },
+    {
+      "id": "app",
+      "type": "frontend",
+      "label": "App (SwiftUI)",
+      "sublabel": "menu bar · control center",
+      "tag": "batches 2 & 4 — not built",
+      "pos": [
+        1060,
+        110
+      ],
+      "size": [
+        170,
+        68
+      ]
+    },
+    {
+      "id": "keychain",
+      "type": "security",
+      "label": "Keychain",
+      "sublabel": "fr.lauriat.sandboxwatch",
+      "tag": "SANDBOX_TOKEN",
+      "pos": [
+        760,
+        110
+      ],
+      "size": [
+        170,
+        68
+      ],
+      "sources": [
+        {
+          "path": "Sources/SandboxWatchKit/TokenStore.swift",
+          "label": "KeychainTokenStore"
+        }
+      ]
+    },
+    {
+      "id": "inventory",
+      "type": "database",
+      "label": "~/.config/sbw",
+      "sublabel": "sandboxes.yaml · cursors",
+      "tag": "no secret",
+      "pos": [
+        760,
+        490
+      ],
+      "size": [
+        170,
+        68
+      ],
+      "sources": [
+        {
+          "path": "Sources/SandboxWatchKit/SandboxStore.swift",
+          "label": "SandboxStore"
+        }
+      ]
+    },
+    {
+      "id": "az",
+      "type": "external",
+      "label": "az CLI",
+      "sublabel": "your own Azure login",
+      "tag": "batch 3 — not built",
+      "pos": [
+        1060,
+        490
+      ],
+      "size": [
+        170,
+        68
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Azure resource group",
+      "wraps": [
+        "apps",
+        "manager"
+      ]
+    },
+    {
+      "kind": "region",
+      "label": "Your Mac",
+      "wraps": [
+        "kit",
+        "cli",
+        "app",
+        "keychain",
+        "inventory",
+        "az"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "collect",
+      "from": "manager",
+      "to": "apps",
+      "label": "collects every 10 min",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "read-api",
+      "from": "kit",
+      "to": "manager",
+      "label": "GET /api/v1 · X-Sandbox-Token",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "id": "token",
+      "from": "keychain",
+      "to": "kit",
+      "label": "supplies the token",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "inventory-read",
+      "from": "inventory",
+      "to": "kit",
+      "label": "name, URL, last change seen"
+    },
+    {
+      "id": "kit-cli",
+      "from": "kit",
+      "to": "cli"
+    },
+    {
+      "id": "kit-app",
+      "from": "kit",
+      "to": "app",
+      "variant": "dashed"
+    },
+    {
+      "id": "write-action",
+      "from": "cli",
+      "to": "az",
+      "label": "start / stop / restart",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "az-write",
+      "from": "az",
+      "to": "apps",
+      "label": "under your own login",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Read path",
+      "items": [
+        "The server collects the resource group and diffs it against the previous snapshot",
+        "sbw reads /api/v1 over HTTPS with X-Sandbox-Token",
+        "The server bounds that token to Reader: holding it changes nothing"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Write path — batch 3",
+      "items": [
+        "start / stop / restart go through the local az CLI",
+        "Under your own Azure login, never the sandbox token",
+        "Three guards: subscription, snapshot freshness, non-interactivity",
+        "Dashed boxes are designed, not present in Sources/"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "State on disk",
+      "items": [
+        "The inventory and the change cursors hold no secret",
+        "The token lives only in the Keychain — never in YAML, never as an argument"
+      ]
+    }
+  ]
+}

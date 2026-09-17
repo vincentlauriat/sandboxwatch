@@ -58,6 +58,9 @@ whole project exists for. `!` marks role, lock and budget changes.
 Each run moves a cursor, so the next run shows only what is new. `--keep-cursor` looks without
 moving it.
 
+The whole decision — the mark, the overflow, the widening — is drawn in
+[`diagrams/change-cursor.html`](diagrams/change-cursor.html).
+
 If a line says *older events were not returned*, more happened than the server would return in
 one page: some events are missing from the output. It is a signal, not an error — the
 alternative would be losing them silently.

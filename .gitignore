@@ -13,6 +13,9 @@ PLAN.md
 *.zip
 *.tar.gz
 
+# Preuves locales de visual-check Archify (captures + receipts, non versionnées)
+*.visual-check.*
+
 # Swift
 .build/
 .swiftpm/

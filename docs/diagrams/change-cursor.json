@@ -1,0 +1,332 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "sbw changes — what is new, and what was lost",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "happy-path",
+        "label": "Nothing was lost",
+        "focus": [
+          "run",
+          "cursor",
+          "fetch",
+          "scan",
+          "matched",
+          "print"
+        ],
+        "note": "The page reaches back past the mark, so everything above it is new."
+      },
+      {
+        "id": "overflow",
+        "label": "Events fell off the page",
+        "focus": [
+          "scan",
+          "overflow",
+          "widen",
+          "fetch",
+          "report"
+        ],
+        "note": "Widen to 200, then 500, then say so rather than truncate in silence."
+      },
+      {
+        "id": "first-run",
+        "label": "First run",
+        "focus": [
+          "scan",
+          "firstrun",
+          "print"
+        ],
+        "note": "No mark yet: set one, announce nothing, replay no history."
+      }
+    ],
+    "legend": {
+      "mode": "auto",
+      "entries": {
+        "frontend": {
+          "label": "sbw command"
+        },
+        "backend": {
+          "label": "Kit decision"
+        },
+        "database": {
+          "label": "Cursor on disk"
+        },
+        "cloud": {
+          "label": "Server route"
+        },
+        "security": {
+          "label": "Lost events"
+        },
+        "messagebus": {
+          "label": "Retry"
+        }
+      }
+    }
+  },
+  "lanes": [
+    {
+      "id": "cli",
+      "label": "sbw"
+    },
+    {
+      "id": "kit",
+      "label": "SandboxWatchKit"
+    },
+    {
+      "id": "server",
+      "label": "AzureSandboxManager"
+    },
+    {
+      "id": "gap",
+      "label": "Events that were lost",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "ask",
+      "label": "Ask",
+      "fromCol": 0,
+      "toCol": 2
+    },
+    {
+      "id": "decide",
+      "label": "Decide what is new",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "tell",
+      "label": "Tell",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "groups": [
+    {
+      "id": "widen_loop",
+      "label": "Widen and ask again",
+      "lane": "gap",
+      "fromCol": 3,
+      "toCol": 4,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "run",
+    "cursor",
+    "fetch",
+    "scan",
+    "matched",
+    "print"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "run"
+    ],
+    "allowedTerminals": [
+      "print",
+      "report"
+    ],
+    "requiredPaths": [
+      {
+        "from": "run",
+        "to": "print"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "run",
+      "lane": "cli",
+      "col": 0,
+      "type": "frontend",
+      "label": "sbw changes dev",
+      "sublabel": "--limit 50",
+      "width": 186
+    },
+    {
+      "id": "cursor",
+      "lane": "kit",
+      "col": 1,
+      "type": "database",
+      "label": "Read the mark",
+      "sublabel": "cursors/dev.json",
+      "tag": "(at, type, subject)",
+      "width": 186
+    },
+    {
+      "id": "fetch",
+      "lane": "server",
+      "col": 2,
+      "type": "cloud",
+      "label": "GET /api/v1/changes",
+      "sublabel": "newest first, caps at 500",
+      "width": 186
+    },
+    {
+      "id": "scan",
+      "lane": "kit",
+      "col": 3,
+      "type": "backend",
+      "label": "ChangeCursor.scan",
+      "sublabel": "is the mark in the page?",
+      "width": 186
+    },
+    {
+      "id": "matched",
+      "lane": "kit",
+      "col": 4,
+      "type": "backend",
+      "label": "Everything above it",
+      "sublabel": "is what is new",
+      "width": 186
+    },
+    {
+      "id": "firstrun",
+      "lane": "cli",
+      "col": 4,
+      "type": "frontend",
+      "label": "First run",
+      "sublabel": "set the mark, say nothing",
+      "width": 186
+    },
+    {
+      "id": "print",
+      "lane": "cli",
+      "col": 5,
+      "type": "frontend",
+      "label": "Print and move on",
+      "sublabel": "!! access · ! governance",
+      "width": 186
+    },
+    {
+      "id": "overflow",
+      "lane": "gap",
+      "col": 3,
+      "type": "security",
+      "label": "The page fell short",
+      "sublabel": "oldest is newer than the mark",
+      "width": 186
+    },
+    {
+      "id": "widen",
+      "lane": "gap",
+      "col": 4,
+      "type": "messagebus",
+      "label": "Widen the limit",
+      "sublabel": "50 → 200 → 500",
+      "width": 186
+    },
+    {
+      "id": "report",
+      "lane": "gap",
+      "col": 5,
+      "type": "security",
+      "label": "Say what is missing",
+      "sublabel": "never truncate in silence",
+      "width": 186
+    }
+  ],
+  "edges": [
+    {
+      "id": "run-cursor",
+      "from": "run",
+      "to": "cursor",
+      "variant": "default"
+    },
+    {
+      "id": "cursor-fetch",
+      "from": "cursor",
+      "to": "fetch",
+      "label": "ask for a page",
+      "variant": "default"
+    },
+    {
+      "id": "fetch-scan",
+      "from": "fetch",
+      "to": "scan",
+      "variant": "emphasis"
+    },
+    {
+      "id": "scan-matched",
+      "from": "scan",
+      "to": "matched",
+      "label": "mark found",
+      "variant": "emphasis"
+    },
+    {
+      "id": "matched-print",
+      "from": "matched",
+      "to": "print",
+      "variant": "emphasis"
+    },
+    {
+      "id": "scan-firstrun",
+      "from": "scan",
+      "to": "firstrun",
+      "label": "no mark yet",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "firstrun-print",
+      "from": "firstrun",
+      "to": "print",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "scan-overflow",
+      "from": "scan",
+      "to": "overflow",
+      "label": "mark not in the page",
+      "variant": "security",
+      "role": "error"
+    },
+    {
+      "id": "overflow-widen",
+      "from": "overflow",
+      "to": "widen",
+      "variant": "security"
+    },
+    {
+      "id": "widen-fetch",
+      "from": "widen",
+      "to": "fetch",
+      "label": "ask again",
+      "variant": "dashed",
+      "role": "return"
+    },
+    {
+      "id": "widen-report",
+      "from": "widen",
+      "to": "report",
+      "label": "500 reached",
+      "variant": "security",
+      "role": "error"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "The mark",
+      "items": [
+        "(at, type, subject) — never at alone: timestamps tie",
+        "First run sets the mark and announces nothing"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "When events are lost",
+      "items": [
+        "Oldest event still newer than the mark means a gap",
+        "Widen to 200, then 500, then say so"
+      ]
+    }
+  ]
+}
