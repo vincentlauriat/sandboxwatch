@@ -12,7 +12,7 @@ final class StatusRowTests: XCTestCase {
           "collectedAt": "2026-09-16T08:00:00.000Z",
           "ageSeconds": \(ageSeconds),
           "snapshot": {
-            "identity": { "status": "ok", "data": { "subscriptionId": "sub-1", "resourceGroup": "rg" }, "message": null, "durationMs": 1 },
+            "identity": { "available": true, "subscriptionId": "sub-1", "resourceGroup": "rg" },
             "resources": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
             "plans": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
             "apps": \(apps),
