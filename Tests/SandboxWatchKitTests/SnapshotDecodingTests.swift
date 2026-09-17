@@ -9,7 +9,7 @@ final class SnapshotDecodingTests: XCTestCase {
       "collectedAt": "2026-09-16T08:00:00.000Z",
       "ageSeconds": 142.7,
       "snapshot": {
-        "identity": { "status": "ok", "data": { "subscriptionId": "sub-1", "resourceGroup": "rg-sandbox" }, "message": null, "durationMs": 10 },
+        "identity": { "available": true, "subscriptionId": "sub-1", "resourceGroup": "rg-sandbox" },
         "resources": { "status": "ok", "data": [ { "name": "api", "type": "Microsoft.Web/sites", "location": "westeurope" } ], "message": null, "durationMs": 120 },
         "plans": { "status": "ok", "data": [ { "name": "plan-1", "tier": "Basic", "size": "B1", "appCount": 2, "status": "Ready" } ], "message": null, "durationMs": 90 },
         "apps": { "status": "ok", "data": [ { "name": "api", "state": "Running", "runtime": "NODE|20-lts", "httpsOnly": true, "url": "https://api.azurewebsites.net" } ], "message": null, "durationMs": 110 },
@@ -37,7 +37,12 @@ final class SnapshotDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.budget.fold(ok: { $0.percentage }, unavailable: { _ in nil }), 25)
         // `ok` returns a non-optional String here, so the unavailable branch must match it:
         // `fold` deliberately forces both branches to agree on one type.
-        XCTAssertEqual(snapshot.identity.fold(ok: { $0.subscriptionId }, unavailable: { $0 }), "sub-1")
+        // Not a Section: identity is configuration and can never be denied. This fixture is
+        // copied from a real /api/v1/snapshot response, not written from the spec — the shape
+        // the two disagreed on for the whole of batch 1.
+        XCTAssertEqual(snapshot.identity.subscriptionId, "sub-1")
+        XCTAssertEqual(snapshot.identity.resourceGroup, "rg-sandbox")
+        XCTAssertTrue(snapshot.identity.available)
     }
 
     func testDeniedGovernanceDoesNotLookLikeAnEmptyGovernance() throws {

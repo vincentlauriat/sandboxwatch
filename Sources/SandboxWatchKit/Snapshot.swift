@@ -1,6 +1,13 @@
 import Foundation
 
+/// Which scope a snapshot describes. Deliberately **not** a `Section`: this is the server's own
+/// configuration, it is known before any collector runs, and it can never be denied. Modelling it
+/// as a section — as this client did for the whole of batch 1 — makes every real snapshot fail to
+/// decode, because the wire has no `status` key here.
+///
+/// `subscriptionId` is what a write action compares against the subscription `az` is pointed at.
 public struct Identity: Decodable, Equatable {
+    public let available: Bool
     public let subscriptionId: String
     public let resourceGroup: String
 }
@@ -64,7 +71,7 @@ public struct Probe: Decodable, Equatable {
 }
 
 public struct Snapshot: Decodable {
-    public let identity: Section<Identity>
+    public let identity: Identity
     public let resources: Section<[AzureResource]>
     public let plans: Section<[ServicePlan]>
     public let apps: Section<[AzureApp]>
@@ -75,8 +82,9 @@ public struct Snapshot: Decodable {
     /// The sections that did not collect, by name — what `doctor` reports and what the UI
     /// must explain rather than render as empty.
     public var unavailableSections: [String] {
+        // `identity` is absent on purpose: it is configuration, not a collection, so it has
+        // no unavailable state to report.
         var names: [String] = []
-        if !identity.isOK { names.append("identity") }
         if !resources.isOK { names.append("resources") }
         if !plans.isOK { names.append("plans") }
         if !apps.isOK { names.append("apps") }
