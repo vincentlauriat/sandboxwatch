@@ -16,6 +16,10 @@ Mac.
 > See [`docs/getting-started.md`](docs/getting-started.md), and
 > [`docs/superpowers/specs/2026-09-16-sandboxwatch-design.md`](docs/superpowers/specs/2026-09-16-sandboxwatch-design.md)
 > for the design the remaining batches follow.
+>
+> **Diagrams** (self-contained HTML, open in a browser):
+> [architecture](docs/diagrams/architecture.html) ·
+> [the `sbw changes` cursor](docs/diagrams/change-cursor.html).
 
 ## Planned shape
 

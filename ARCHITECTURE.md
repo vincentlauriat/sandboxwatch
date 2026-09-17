@@ -6,6 +6,19 @@ Miroir français de `ARCHITECTURE_EN.md`, qui fait foi. Les deux s'éditent dans
 Les lignes marquées *(lot 3)* ou *(lot 4)* sont conçues, pas construites : elles figurent ici
 parce que la forme du Kit les suppose, pas parce qu'on les trouvera dans `Sources/`.
 
+## Diagrammes
+
+Deux diagrammes interactifs accompagnent ce document. Ce sont des fichiers HTML autonomes — à
+ouvrir dans un navigateur ; la spécification dont chacun est issu se trouve à côté de lui.
+
+| Diagramme | Ce qu'il montre |
+|---|---|
+| [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) | Les deux transports et les deux identités : ce qui lit sous le token borné à Reader, ce qui écrit sous la session `az` de Vincent, et quelles boîtes sont conçues plutôt que construites. |
+| [`docs/diagrams/change-cursor.html`](docs/diagrams/change-cursor.html) | Comment `sbw changes` décide ce qui est nouveau — la marque `(at, type, subject)`, l'élargissement après un débordement, et le signalement qui remplace une troncature silencieuse. |
+
+Pour en régénérer un, éditer son `.json` et le repasser par la skill `archify`. Le HTML est
+l'artefact livré, pas un fichier à modifier à la main.
+
 ## Place dans la famille
 
 ```
