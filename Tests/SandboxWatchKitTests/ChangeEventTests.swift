@@ -20,7 +20,34 @@ final class ChangeEventTests: XCTestCase {
         XCTAssertEqual(event.type, "collector_access_lost")
         XCTAssertEqual(event.subject, "governance")
         XCTAssertEqual(event.collector, "governance")
-        XCTAssertEqual(event.detail?["message"], "AuthorizationFailed")
+        XCTAssertEqual(event.detail?["message"]?.text, "AuthorizationFailed")
+    }
+
+    func testDetailAcceptsTheValueTypesTheServerActuallySends() throws {
+        // A real probe transition: `{"from": 200, "to": null}`. Declaring detail as
+        // [String: String] made every `sbw changes` call against a live log fail outright.
+        let event = try decode("""
+        {
+          "at": "2026-09-16T08:00:00.000Z",
+          "type": "probe_status_changed",
+          "subject": "api",
+          "detail": { "from": 200, "to": null, "message": "timeout", "httpsOnly": false },
+          "collector": "probes"
+        }
+        """)
+
+        XCTAssertEqual(event.detail?["from"], .number(200))
+        XCTAssertEqual(event.detail?["to"], .null)
+        XCTAssertEqual(event.detail?["message"], .string("timeout"))
+        XCTAssertEqual(event.detail?["httpsOnly"], .bool(false))
+    }
+
+    func testAWholeNumberIsShownWithoutADecimalPoint() throws {
+        // 200 must read as "200", not "200.0", in `sbw changes` output.
+        XCTAssertEqual(JSONValue.number(200).text, "200")
+        XCTAssertEqual(JSONValue.number(12.5).text, "12.5")
+        // Null has no text: the caller skips it rather than printing the word "null".
+        XCTAssertNil(JSONValue.null.text)
     }
 
     func testEventWithoutDetailStillDecodes() throws {

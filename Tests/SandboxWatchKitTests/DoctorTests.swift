@@ -19,7 +19,7 @@ final class DoctorTests: XCTestCase {
             "resources": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
             "plans": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
             "apps": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
-            "budget": { "status": "ok", "data": {}, "message": null, "durationMs": 1 },
+            "budget": { "status": "ok", "data": [], "message": null, "durationMs": 1 },
             "governance": \(governance),
             "probes": { "status": "ok", "data": [], "message": null, "durationMs": 1 }
           }

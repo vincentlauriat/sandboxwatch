@@ -2,20 +2,26 @@ import XCTest
 @testable import SandboxWatchKit
 
 final class SnapshotDecodingTests: XCTestCase {
-    /// A snapshot where governance is denied and everything else collected — the shape the
-    /// founding incident produces.
+    /// Copied from a real `GET /api/v1/snapshot` response, with governance flipped to denied —
+    /// the shape the founding incident produces.
+    ///
+    /// **Copied, not written.** Batch 1's fixtures were composed from the spec, so they agreed
+    /// with a model that had also been composed from the spec, and 99 green tests proved only
+    /// that the client was consistent with its own belief. `budget` is a list, a probe's key is
+    /// `app`, a plan counts `sites`, a role carries `roleDefinitionId`, and `detail` mixes
+    /// strings, numbers and nulls — none of which the invented fixtures contained.
     static let json = """
     {
       "collectedAt": "2026-09-16T08:00:00.000Z",
       "ageSeconds": 142.7,
       "snapshot": {
         "identity": { "available": true, "subscriptionId": "sub-1", "resourceGroup": "rg-sandbox" },
-        "resources": { "status": "ok", "data": [ { "name": "api", "type": "Microsoft.Web/sites", "location": "westeurope" } ], "message": null, "durationMs": 120 },
-        "plans": { "status": "ok", "data": [ { "name": "plan-1", "tier": "Basic", "size": "B1", "appCount": 2, "status": "Ready" } ], "message": null, "durationMs": 90 },
-        "apps": { "status": "ok", "data": [ { "name": "api", "state": "Running", "runtime": "NODE|20-lts", "httpsOnly": true, "url": "https://api.azurewebsites.net" } ], "message": null, "durationMs": 110 },
-        "budget": { "status": "ok", "data": { "amount": 50, "spend": 12.5, "percentage": 25, "thresholds": [80, 100] }, "message": null, "durationMs": 300 },
+        "resources": { "status": "ok", "data": [ { "name": "api", "type": "Microsoft.Web/sites", "location": "westeurope", "tags": {} } ], "message": null, "durationMs": 120 },
+        "plans": { "status": "ok", "data": [ { "name": "plan-1", "tier": "Basic", "size": "B1", "sites": 2, "status": "Ready", "location": "westeurope" } ], "message": null, "durationMs": 90 },
+        "apps": { "status": "ok", "data": [ { "name": "api", "state": "Running", "plan": "plan-1", "runtime": "NODE|20-lts", "httpsOnly": true, "alwaysOn": false, "url": "https://api.azurewebsites.net", "location": "westeurope" } ], "message": null, "durationMs": 110 },
+        "budget": { "status": "ok", "data": [ { "name": "monthly", "amount": 50, "currency": "EUR", "spent": 12.5, "percent": 25, "timeGrain": "Monthly", "thresholds": [80, 100] } ], "message": null, "durationMs": 300 },
         "governance": { "status": "denied", "data": null, "message": "AuthorizationFailed", "durationMs": 45 },
-        "probes": { "status": "ok", "data": [ { "name": "api", "url": "https://api.azurewebsites.net", "statusCode": 200, "latencyMs": 87 } ], "message": null, "durationMs": 400 }
+        "probes": { "status": "ok", "data": [ { "app": "api", "url": "https://api.azurewebsites.net", "httpStatus": 200, "latencyMs": 87, "error": null } ], "message": null, "durationMs": 400 }
       }
     }
     """
@@ -33,13 +39,11 @@ final class SnapshotDecodingTests: XCTestCase {
             .decode(SnapshotResponse.self, from: Data(Self.json.utf8)).snapshot
 
         XCTAssertEqual(snapshot.apps.fold(ok: { $0.map(\.name) }, unavailable: { _ in [] }), ["api"])
-        XCTAssertEqual(snapshot.probes.fold(ok: { $0.first?.statusCode }, unavailable: { _ in nil }), 200)
-        XCTAssertEqual(snapshot.budget.fold(ok: { $0.percentage }, unavailable: { _ in nil }), 25)
-        // `ok` returns a non-optional String here, so the unavailable branch must match it:
-        // `fold` deliberately forces both branches to agree on one type.
-        // Not a Section: identity is configuration and can never be denied. This fixture is
-        // copied from a real /api/v1/snapshot response, not written from the spec — the shape
-        // the two disagreed on for the whole of batch 1.
+        XCTAssertEqual(snapshot.probes.fold(ok: { $0.first?.httpStatus }, unavailable: { _ in nil }), 200)
+        XCTAssertEqual(snapshot.plans.fold(ok: { $0.first?.sites }, unavailable: { _ in nil }), 2)
+        // A list on the wire: one budget today, several possible.
+        XCTAssertEqual(snapshot.budget.fold(ok: { $0.first?.percent }, unavailable: { _ in nil }), 25)
+        // Not a Section: identity is configuration and can never be denied.
         XCTAssertEqual(snapshot.identity.subscriptionId, "sub-1")
         XCTAssertEqual(snapshot.identity.resourceGroup, "rg-sandbox")
         XCTAssertTrue(snapshot.identity.available)

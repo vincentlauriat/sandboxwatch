@@ -22,30 +22,45 @@ public struct ServicePlan: Decodable, Equatable {
     public let name: String
     public let tier: String?
     public let size: String?
-    public let appCount: Int?
+    /// The wire calls this `sites`. It was modelled as `appCount` and therefore always decoded
+    /// to nil — a silent wrong answer rather than a failure.
+    public let sites: Int?
     public let status: String?
+    public let location: String?
 }
 
 public struct AzureApp: Decodable, Equatable {
     public let name: String
     public let state: String?
+    public let plan: String?
     public let runtime: String?
     public let httpsOnly: Bool?
+    public let alwaysOn: Bool?
     public let url: String?
+    public let location: String?
 
     public var isRunning: Bool { state?.caseInsensitiveCompare("Running") == .orderedSame }
 }
 
+/// One budget. The wire sends a **list** — a resource group can carry several — and names the
+/// fields `spent` and `percent`. The model said one object with `spend` and `percentage`.
 public struct Budget: Decodable, Equatable {
+    public let name: String?
     public let amount: Double?
-    public let spend: Double?
-    public let percentage: Double?
+    public let currency: String?
+    public let spent: Double?
+    public let percent: Double?
+    public let timeGrain: String?
     public let thresholds: [Double]?
 }
 
 public struct RoleAssignment: Decodable, Equatable {
+    public let id: String?
     public let principalId: String?
-    public let roleDefinitionName: String?
+    public let principalType: String?
+    /// The wire sends the role definition **id**, not its display name. Resolving a name would
+    /// need directory access this identity does not have.
+    public let roleDefinitionId: String?
     public let scope: String?
 }
 
@@ -61,13 +76,16 @@ public struct Governance: Decodable, Equatable {
 }
 
 public struct Probe: Decodable, Equatable {
-    public let name: String
+    /// The wire calls this `app`, and it is required — modelling it as `name` made every
+    /// snapshot with probes fail to decode.
+    public let app: String
     public let url: String?
-    public let statusCode: Int?
+    public let httpStatus: Int?
     public let latencyMs: Double?
+    public let error: String?
 
     /// A probe with no status code did not answer at all.
-    public var answered: Bool { statusCode != nil }
+    public var answered: Bool { httpStatus != nil }
 }
 
 public struct Snapshot: Decodable {
@@ -75,7 +93,7 @@ public struct Snapshot: Decodable {
     public let resources: Section<[AzureResource]>
     public let plans: Section<[ServicePlan]>
     public let apps: Section<[AzureApp]>
-    public let budget: Section<Budget>
+    public let budget: Section<[Budget]>
     public let governance: Section<Governance>
     public let probes: Section<[Probe]>
 
