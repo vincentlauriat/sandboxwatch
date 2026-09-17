@@ -47,7 +47,10 @@ public struct SandboxAPIClient {
             throw failure
         } catch {
             // Anything the transport throws is a reachability problem, not a server verdict.
-            throw APIFailure.transport("\(error)")
+            // `localizedDescription`, never `\(error)`: URLSession throws an NSError whose
+            // interpolation dumps 400 characters of userInfo, and this string ends up on a
+            // `sbw watch` line and in a notification body.
+            throw APIFailure.transport(error.localizedDescription)
         }
 
         if let failure = SandboxAPI.failure(forStatus: response.statusCode, body: response.body) {

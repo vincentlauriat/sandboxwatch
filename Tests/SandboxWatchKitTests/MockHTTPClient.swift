@@ -11,7 +11,7 @@ final class MockHTTPClient: HTTPClient {
 
     private(set) var requests: [Request] = []
     private var stubs: [(path: String, response: HTTPResponse)] = []
-    private var failures: [(path: String, message: String)] = []
+    private var failures: [(path: String, error: Error)] = []
 
     func stub(path: String, status: Int, json: String, headers: [String: String] = [:]) {
         stub(path: path, status: status, body: Data(json.utf8), headers: headers)
@@ -22,7 +22,13 @@ final class MockHTTPClient: HTTPClient {
     }
 
     func fail(path: String, message: String) {
-        failures.append((path, message))
+        failures.append((path, SandboxWatchError(message)))
+    }
+
+    /// Fails with an arbitrary error, so a test can reproduce what URLSession really throws:
+    /// an NSError whose `\(error)` dumps its whole userInfo.
+    func fail(path: String, error: Error) {
+        failures.append((path, error))
     }
 
     func get(_ url: URL, headers: [String: String]) async throws -> HTTPResponse {
@@ -36,7 +42,7 @@ final class MockHTTPClient: HTTPClient {
     private func answer(_ method: String, _ url: URL, _ headers: [String: String]) throws -> HTTPResponse {
         requests.append(Request(method: method, url: url, headers: headers))
         if let failure = failures.last(where: { url.path.contains($0.path) }) {
-            throw SandboxWatchError(failure.message)
+            throw failure.error
         }
         guard let stub = stubs.last(where: { url.path.contains($0.path) }) else {
             throw SandboxWatchError("MockHTTPClient: no stub for \(url.path)")

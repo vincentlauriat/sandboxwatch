@@ -683,14 +683,22 @@ Batch A2 — the menu bar app — must not start before all of these hold:
   cat ~/.config/sbw/liaison/dev.json
   sbw watch dev --once        # steady state: still prints nothing
   ```
-- [ ] Force a real transition and see it announced exactly once. The cheapest safe way is to
-      point the inventory at a URL that does not answer, poll three times, and check that the
-      **second** poll speaks and the third does not:
+- [ ] Force a real transition and see it announced exactly once. **A sandbox that is broken from
+      its first poll produces no transition** — `unreachable` simply becomes its baseline, and
+      three silences are the correct answer. The state has to start healthy and then break:
   ```bash
-  sbw sandbox add broken --url https://sandboxmgr-does-not-exist.azurewebsites.net   # token: any
-  sbw watch broken --once ; sbw watch broken --once ; sbw watch broken --once
-  sbw sandbox remove broken
+  <token> | sbw sandbox add probe --url https://sandboxmgr.azurewebsites.net
+  sbw watch probe --once          # silent: establishes a healthy baseline
+  sbw sandbox remove probe
+  echo x | sbw sandbox add probe --url https://does-not-exist.azurewebsites.net
+  sbw watch probe --once          # silent: one reading is not evidence
+  sbw watch probe --once          # SPEAKS
+  sbw watch probe --once          # silent: a steady state is not re-announced
+  sbw sandbox remove probe && rm ~/.config/sbw/liaison/probe.json
   ```
+  Removing a sandbox leaves its liaison state on disk, which is what makes this work.
+- [ ] Read the announced line. It goes into a notification body in batch A2, so an NSError dump
+      is a defect, not cosmetics.
 - [ ] `sbw watch dev --once` and `sbw doctor dev` describe the same state in the same words —
       the rule that the CLI and the app never diverge starts here.
 

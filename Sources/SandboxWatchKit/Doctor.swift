@@ -107,7 +107,7 @@ public struct Doctor {
             case .malformed(let detail):    return [.serverProblem("malformed response: \(detail)")]
             }
         } catch {
-            return [.unreachable("\(error)")]
+            return [.unreachable(error.localizedDescription)]
         }
 
         var findings: [Finding] = []
