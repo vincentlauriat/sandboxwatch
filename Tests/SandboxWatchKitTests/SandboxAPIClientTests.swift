@@ -97,6 +97,32 @@ final class SandboxAPIClientTests: XCTestCase {
         XCTAssertEqual(mock.requests.first?.url.path, "/api/v1/apps")
         XCTAssertEqual(response.apps.fold(ok: { $0.count }, unavailable: { _ in -1 }), 1)
     }
+
+    func testATransportFailureIsReadableNotAnNSErrorDump() async {
+        // `\(error)` on a URLError prints ~400 characters of NSError internals. That line goes
+        // into `sbw watch` output and, in the app, into a notification body.
+        let mock = MockHTTPClient()
+        // What URLSession really throws. Its `\(error)` dumps the whole userInfo; only
+        // localizedDescription is fit to show a person.
+        mock.fail(path: "/api/v1/snapshot", error: NSError(
+            domain: NSURLErrorDomain, code: -1003, userInfo: [
+                NSLocalizedDescriptionKey: "A server with the specified hostname could not be found.",
+                "NSErrorFailingURLStringKey": "https://sandboxmgr-nexiste-pas.azurewebsites.net/api/v1/snapshot",
+                "_NSURLErrorRelatedURLSessionTaskErrorKey": ["LocalDataTask <2F95B3DC-B921-4650-816A-AEA1E8DB7B7C>.<1>"],
+            ]))
+
+        do {
+            _ = try await client(mock).snapshot()
+            XCTFail("expected a transport failure")
+        } catch let failure as APIFailure {
+            XCTAssertEqual(failure, .transport("A server with the specified hostname could not be found."))
+            XCTAssertFalse(failure.explanation.contains("NSErrorFailingURLStringKey"))
+            XCTAssertLessThan(failure.explanation.count, 120)
+        } catch {
+            XCTFail("expected an APIFailure, got \(error)")
+        }
+    }
+
 }
 
 /// Small helper so each expectation reads as one line.

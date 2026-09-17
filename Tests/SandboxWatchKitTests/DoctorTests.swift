@@ -109,4 +109,32 @@ final class DoctorTests: XCTestCase {
         XCTAssertTrue(Doctor.Finding.sectionsUnavailable(["governance"]).isProblem)
         XCTAssertTrue(Doctor.Finding.stale(ageSeconds: 9999).isProblem)
     }
+
+    func testTwoHealthyReadingsShareOneKindDespiteDifferentAges() async {
+        // The trap this type exists for. `.healthy(ageSeconds:)` carries a number that changes
+        // at every reading, so comparing findings by Equatable would report a transition every
+        // five minutes, forever.
+        let first = Doctor.Finding.healthy(ageSeconds: 60)
+        let second = Doctor.Finding.healthy(ageSeconds: 305)
+
+        XCTAssertNotEqual(first, second)
+        XCTAssertEqual(first.kind, second.kind)
+        XCTAssertEqual(Set([first].map(\.kind)), Set([second].map(\.kind)))
+    }
+
+    func testEveryFindingHasADistinctKind() {
+        let findings: [Doctor.Finding] = [
+            .unreachable("x"), .unauthorised, .notCollectedYet, .serverProblem("x"),
+            .stale(ageSeconds: 1), .sectionsUnavailable(["governance"]), .healthy(ageSeconds: 1),
+        ]
+        XCTAssertEqual(Set(findings.map(\.kind)).count, findings.count)
+        XCTAssertEqual(Set(findings.map(\.kind)), Set(Doctor.Finding.Kind.allCases))
+    }
+
+    func testStaleWithDeniedSectionsIsATwoKindObservation() async {
+        // A transition is a change of the SET, not of "the worst": going from {stale} to
+        // {stale, sectionsUnavailable} is a transition even though the worst did not change.
+        let findings: [Doctor.Finding] = [.stale(ageSeconds: 4000), .sectionsUnavailable(["governance"])]
+        XCTAssertEqual(Set(findings.map(\.kind)), [.stale, .sectionsUnavailable])
+    }
 }

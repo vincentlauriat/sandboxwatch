@@ -18,7 +18,8 @@ enum ReadCommands {
                 // looking for the broken one.
                 rows.append(StatusRow.unreachable(sandbox: name, failure: failure))
             } catch {
-                rows.append(StatusRow.unreachable(sandbox: name, failure: .transport("\(error)")))
+                rows.append(StatusRow.unreachable(
+                    sandbox: name, failure: .transport(error.localizedDescription)))
             }
         }
 
