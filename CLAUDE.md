@@ -95,6 +95,12 @@ surface polls most often silence the others — a background `sbw watch` would c
 `sbw changes` was owed. Anything an Xcode app target must call belongs in `SandboxWatchKit`: an app
 target can link the library product, never the `sbw` executable target.
 
+**One vocabulary, one definition.** The severity marker was written twice — in `sbw changes` and
+in `sbw watch` — and the two had already drifted (`"!"` against `"! "`), which shifted every
+critical line of `sbw changes` one column. It now lives once, on `ChangeSeverity.marker`, and the
+control center reads the same one. Before writing a rendering rule in a surface, check whether
+another surface already has it.
+
 **`SandboxJSON.decoder`, never `JSONDecoder` with `.iso8601`.** The built-in strategy rejects
 fractional seconds and the server emits them; swapping it back fails on every snapshot.
 

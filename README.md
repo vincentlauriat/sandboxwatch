@@ -33,6 +33,7 @@ Mac.
 | ✅ A2a | `SandboxWatcher.poll` in the Kit, one change cursor and one liaison state per surface |
 | ✅ A2b | Menu bar agent: status icon, notifications on transitions and critical events, FR + EN |
 | ✅ B | `start` / `stop` / `restart` via the local `az` CLI, behind three guards, with an append-only journal |
+| ✅ C | Control center window: overview, per-sandbox tabs, Actions behind the same guards |
 | 4 | Control center window |
 
 ## Two things that are not like HomePortManager

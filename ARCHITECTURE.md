@@ -61,6 +61,7 @@ jamais rien modifier.
 | `ActionJournal` | Journal local append-only des actions, refus compris. | — |
 | `SandboxAction` | Une action d'écriture de bout en bout : gardes, texte de confirmation, journal. | `ActionGuards`, `AzRunner`, `ActionJournal` |
 | `OverviewRow` | Une ligne de centre de contrôle par sandbox. Les compteurs sont optionnels exprès. | `WatchPresentation` |
+| `SandboxDetail` | Le contenu d'un onglet, ou la raison qu'il n'y en ait pas (`Panel`). | `Snapshot`, `ChangeEvent` |
 | `sbw` | CLI mince au-dessus du Kit. | ArgumentParser |
 | `App` *(lots 2 et 4)* | Menu bar + control center, linke le Kit en local. | SwiftUI |
 

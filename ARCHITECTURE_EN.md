@@ -61,6 +61,7 @@ bounded to a Reader role. Writing uses Vincent's own `az` login. The token can n
 | `ActionJournal` | Append-only local log of write actions, refusals included. | — |
 | `SandboxAction` | One write action end to end: guards, confirmation text, journal. | `ActionGuards`, `AzRunner`, `ActionJournal` |
 | `OverviewRow` | One control-center line per sandbox. Counts are optional on purpose. | `WatchPresentation` |
+| `SandboxDetail` | A tab's worth of rows, or the reason there are none (`Panel`). | `Snapshot`, `ChangeEvent` |
 | `sbw` | Thin CLI over the Kit. | ArgumentParser |
 | `App` *(batches 2 and 4)* | Menu bar + control center, links the Kit locally. | SwiftUI |
 
