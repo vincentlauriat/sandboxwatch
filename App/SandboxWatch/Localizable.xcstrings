@@ -18,6 +18,23 @@
         }
       }
     },
+    "Close": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer"
+          }
+        }
+      }
+    },
     "No sandbox declared — run sbw sandbox add": {
       "extractionState": "manual",
       "localizations": {
@@ -52,6 +69,23 @@
         }
       }
     },
+    "Open control center": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open control center"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir le centre de contrôle"
+          }
+        }
+      }
+    },
     "Quit SandboxWatch": {
       "extractionState": "manual",
       "localizations": {
@@ -82,6 +116,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Actualiser maintenant"
+          }
+        }
+      }
+    },
+    "SandboxWatch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SandboxWatch"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SandboxWatch"
+          }
+        }
+      }
+    },
+    "Sandboxes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sandboxes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sandboxes"
           }
         }
       }

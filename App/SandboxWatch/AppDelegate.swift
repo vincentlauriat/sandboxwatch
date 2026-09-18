@@ -24,8 +24,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let cursors = CursorStore(directory: "~/.config/sbw/cursors-app")
     private let liaison = LiaisonStore(directory: "~/.config/sbw/liaison-app")
 
+    private let controlCenter = ControlCenterWindow()
+
     private var timer: Timer?
     private var lines: [(sandbox: String, headline: String, icon: WatchPresentation.StatusIcon)] = []
+    /// What the control center shows. Built by the same poll that drives the icon, so the window
+    /// and the menu bar can never disagree about a sandbox.
+    private var rows: [OverviewRow] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         show(icon: .healthy, checking: true)
@@ -42,10 +47,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func pollAll() async {
         let sandboxes = (try? store.load().sandboxes) ?? []
         var results: [(String, String, WatchPresentation.StatusIcon)] = []
+        var overview: [OverviewRow] = []
 
         for sandbox in sandboxes {
             guard let token = (try? tokens.token(for: sandbox.name)) ?? nil else {
-                results.append((sandbox.name, String(localized: "no token in the Keychain"), .unreachable))
+                let missing = String(localized: "no token in the Keychain")
+                results.append((sandbox.name, missing, .unreachable))
+                overview.append(OverviewRow.unreachable(
+                    sandbox: sandbox.name,
+                    report: SandboxWatchReport(
+                        findings: [.unreachable(missing)], transition: nil,
+                        newEvents: [], overflowed: false)))
                 continue
             }
             let client = SandboxAPIClient(
@@ -60,13 +72,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 let headline = report.findings.map(\.headline).joined(separator: "; ")
                 results.append((sandbox.name, headline, WatchPresentation.icon(for: report)))
+
+                // A sandbox that cannot serve a snapshot still gets a row: the one you are looking
+                // for must not be the one that vanishes from the list.
+                if let snapshot = try? await client.snapshot() {
+                    overview.append(OverviewRow.make(
+                        sandbox: sandbox.name, snapshot: snapshot.snapshot,
+                        ageSeconds: snapshot.ageSeconds, report: report))
+                } else {
+                    overview.append(OverviewRow.unreachable(sandbox: sandbox.name, report: report))
+                }
             } catch {
-                results.append((sandbox.name, error.localizedDescription, .unreachable))
+                let failure = error.localizedDescription
+                results.append((sandbox.name, failure, .unreachable))
+                overview.append(OverviewRow.unreachable(
+                    sandbox: sandbox.name,
+                    report: SandboxWatchReport(
+                        findings: [.unreachable(failure)], transition: nil,
+                        newEvents: [], overflowed: false)))
             }
         }
 
         lines = results
+        rows = overview
         show(icon: worst(of: results.map(\.2)), checking: false)
+        controlCenter.update(rows: rows) { [weak self] in
+            Task { @MainActor in await self?.pollAll() }
+        }
     }
 
     /// One icon for several sandboxes: the worst state wins. Averaging would hide the dead one,
@@ -117,6 +149,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(.separator())
+        let open = NSMenuItem(
+            title: String(localized: "Open control center"),
+            action: #selector(openControlCenter), keyEquivalent: "")
+        open.target = self
+        menu.addItem(open)
+
         let refresh = NSMenuItem(
             title: String(localized: "Refresh now"), action: #selector(refreshNow), keyEquivalent: "r")
         refresh.target = self
@@ -131,6 +169,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
         return item
+    }
+
+    @objc private func openControlCenter() {
+        controlCenter.show(rows: rows) { [weak self] in
+            Task { @MainActor in await self?.pollAll() }
+        }
     }
 
     @objc private func refreshNow() {
