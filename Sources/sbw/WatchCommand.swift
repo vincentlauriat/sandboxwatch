@@ -14,10 +14,15 @@ struct WatchCommand: AsyncParsableCommand {
     func run() async throws {
         let client = try liveClient(for: name)
         let liaison = LiaisonStore()
+        // Its own cursor: moving the one `sbw changes` uses would make a manual run show
+        // nothing. Spec 6.3, amended 2026-09-18.
+        let cursors = CursorStore(directory: "~/.config/sbw/cursors-watch")
 
         repeat {
-            if let line = try await SandboxWatcher.pollOnce(
-                sandbox: name, client: client, liaison: liaison) {
+            let now = Date()
+            let report = try await SandboxWatcher.poll(
+                sandbox: name, client: client, liaison: liaison, cursors: cursors, at: now)
+            if let line = SandboxWatcher.render(report, sandbox: name, at: now) {
                 print(line)
             }
             if once { return }
