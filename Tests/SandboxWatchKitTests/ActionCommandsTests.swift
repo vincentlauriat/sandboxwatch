@@ -46,19 +46,27 @@ final class ActionCommandsTests: XCTestCase {
         return (http, az)
     }
 
-    private func perform(
+    private func run(
         _ http: MockHTTPClient, _ az: MockProcessRunner, confirmed: Bool = true, app: String = "api"
     ) async -> String {
-        await ActionCommands.perform(
-            sandbox: "dev", app: app, action: .restart,
-            client: SandboxAPIClient(baseURL: base, token: "t", http: http),
-            runner: az, journal: ActionJournal(path: journalPath), confirmed: confirmed)
+        let client = SandboxAPIClient(baseURL: base, token: "t", http: http)
+        let store = ActionJournal(path: journalPath)
+        switch await ActionCommands.prepare(sandbox: "dev", app: app, client: client, runner: az) {
+        case .failure(let refusal):
+            ActionCommands.journal(
+                refusal, sandbox: "dev", app: app, action: .restart, journal: store)
+            return ActionCommands.render(refusal)
+        case .success(let context):
+            return await ActionCommands.perform(
+                sandbox: "dev", app: app, action: .restart, context: context,
+                runner: az, journal: store, confirmed: confirmed)
+        }
     }
 
     func testAConfirmedActionRunsAndIsJournalled() async {
         let (http, az) = world()
 
-        let output = await perform(http, az)
+        let output = await run(http, az)
 
         XCTAssertTrue(az.didTouchAWebApp)
         XCTAssertTrue(output.contains("restart"), output)
@@ -70,7 +78,7 @@ final class ActionCommandsTests: XCTestCase {
     func testAnUnconfirmedActionDoesNotRun() async {
         let (http, az) = world()
 
-        let output = await perform(http, az, confirmed: false)
+        let output = await run(http, az, confirmed: false)
 
         XCTAssertFalse(az.didTouchAWebApp, "an unconfirmed action reached az")
         XCTAssertTrue(output.lowercased().contains("cancelled"), output)
@@ -80,7 +88,7 @@ final class ActionCommandsTests: XCTestCase {
     func testARefusedGuardIsJournalledAndNoAzRuns() async {
         let (http, az) = world(subscriptionId: "11111111-2222-3333-4444-555555555555")
 
-        let output = await perform(http, az)
+        let output = await run(http, az)
 
         XCTAssertFalse(az.didTouchAWebApp)
         XCTAssertTrue(output.contains("11111111-2222-3333-4444-555555555555"), output)
@@ -92,13 +100,27 @@ final class ActionCommandsTests: XCTestCase {
         XCTAssertTrue(why.contains("subscription"), why)
     }
 
+    // One action, one pass of the guards. Checking twice would refresh twice, and — worse — the
+    // operator would confirm against one reading while the action departed against another.
+    func testTheGuardsRunOncePerAction() async {
+        let (http, az) = world()
+
+        _ = await run(http, az)
+
+        XCTAssertEqual(http.requestedPaths.filter { $0.contains("refresh") }.count, 1)
+        XCTAssertEqual(az.invocations.filter { $0.dropFirst().first == "account" }.count, 1)
+    }
+
     // The freshness guard's whole purpose: a confirmation must never imply state it did not check.
     func testTheConfirmationShowsTheAgeAndTheCurrentState() async {
         let (http, az) = world()
 
-        let output = await ActionCommands.describe(
-            sandbox: "dev", app: "api", action: .restart,
+        guard case .success(let context) = await ActionCommands.prepare(
+            sandbox: "dev", app: "api",
             client: SandboxAPIClient(baseURL: base, token: "t", http: http), runner: az)
+        else { return XCTFail("expected a context") }
+
+        let output = ActionCommands.describe(context, sandbox: "dev", app: "api", action: .restart)
 
         XCTAssertTrue(output.contains("Running"), output)
         XCTAssertTrue(output.contains("9"), "the age must be shown: \(output)")
@@ -113,9 +135,12 @@ final class ActionCommandsTests: XCTestCase {
         let az = MockProcessRunner()
         az.script(["az", "account", "show"], stdout: "\(subscription)\n")
 
-        let output = await ActionCommands.describe(
-            sandbox: "dev", app: "api", action: .restart,
+        guard case .success(let context) = await ActionCommands.prepare(
+            sandbox: "dev", app: "api",
             client: SandboxAPIClient(baseURL: base, token: "t", http: http), runner: az)
+        else { return XCTFail("expected a context") }
+
+        let output = ActionCommands.describe(context, sandbox: "dev", app: "api", action: .restart)
 
         XCTAssertTrue(output.lowercased().contains("not refreshed"), output)
     }
