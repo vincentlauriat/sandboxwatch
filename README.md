@@ -11,8 +11,11 @@ The pair mirrors [Homeport](../../RaspberryTools/Homeport) /
 [HomePortManager](../../RaspberryTools/HomePortManager): an agent on the machine, a manager on the
 Mac.
 
-> **Status: batch 1 shipped** — `SandboxWatchKit` and a read-only `sbw` CLI.
-> Install: `swift build -c release && ln -sf "$PWD/.build/release/sbw" ~/.local/bin/sbw`.
+> **Status: batches 1, A1, A2a and A2b shipped** — `SandboxWatchKit`, the read-only `sbw` CLI,
+> `sbw watch`, and a menu bar agent.
+> Install the CLI: `swift build -c release && ln -sf "$PWD/.build/release/sbw" ~/.local/bin/sbw`.
+> Build and sign the app: `./Scripts/build-app.sh`, then
+> `ditto App/stage/SandboxWatch.app ~/Applications/SandboxWatch.app`.
 > See [`docs/getting-started.md`](docs/getting-started.md), and
 > [`docs/superpowers/specs/2026-09-16-sandboxwatch-design.md`](docs/superpowers/specs/2026-09-16-sandboxwatch-design.md)
 > for the design the remaining batches follow.
@@ -26,7 +29,9 @@ Mac.
 | Batch | Contents |
 |---|---|
 | ✅ 1 | `SandboxWatchKit` + read-only CLI: inventory, Keychain, `status`, `doctor`, `changes` |
-| 2 | Transition detection, `sbw watch`, menu bar app, notifications on transition only |
+| ✅ A1 | Transition detection with its debounce, `sbw watch` |
+| ✅ A2a | `SandboxWatcher.poll` in the Kit, one change cursor and one liaison state per surface |
+| ✅ A2b | Menu bar agent: status icon, notifications on transitions and critical events, FR + EN |
 | 3 | `start` / `stop` / `restart` via the local `az` CLI, with subscription, freshness and non-interactivity guards |
 | 4 | Control center window |
 
