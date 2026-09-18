@@ -10,6 +10,9 @@ final class MockHTTPClient: HTTPClient {
     }
 
     private(set) var requests: [Request] = []
+
+    /// What a guard test asks: was the network touched at all before the refusal?
+    var requestedPaths: [String] { requests.map(\.url.path) }
     private var stubs: [(path: String, response: HTTPResponse)] = []
     private var failures: [(path: String, error: Error)] = []
 

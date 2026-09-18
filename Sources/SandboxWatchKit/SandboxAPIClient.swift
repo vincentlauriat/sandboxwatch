@@ -32,6 +32,32 @@ public struct SandboxAPIClient {
         return try await get(.changes(limit: limit), as: Envelope.self).events
     }
 
+    /// Forces a collection, then returns the resulting snapshot and whether the server skipped
+    /// the refresh. Rate-limited to once per 30 s: beyond that the server returns the current
+    /// snapshot with `X-Refresh-Skipped: true` rather than an error, and that flag has to reach
+    /// the caller — a confirmation prompt that hid it would claim freshness it does not have.
+    public func refresh() async throws -> (response: SnapshotResponse, skipped: Bool) {
+        let url = SandboxAPI.url(.refresh, base: baseURL)
+        let http: HTTPResponse
+        do {
+            http = try await self.http.post(url, headers: [SandboxAPI.tokenHeader: token])
+        } catch let failure as APIFailure {
+            throw failure
+        } catch {
+            throw APIFailure.transport(error.localizedDescription)
+        }
+
+        if let failure = SandboxAPI.failure(forStatus: http.statusCode, body: http.body) {
+            throw failure
+        }
+        do {
+            let decoded = try SandboxJSON.decoder.decode(SnapshotResponse.self, from: http.body)
+            return (decoded, http.header(SandboxAPI.refreshSkippedHeader) == "true")
+        } catch {
+            throw APIFailure.malformed("\(error)")
+        }
+    }
+
     public func health() async throws -> Health {
         try await get(.healthz, as: Health.self)
     }
