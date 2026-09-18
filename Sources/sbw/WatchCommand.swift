@@ -2,32 +2,6 @@ import ArgumentParser
 import Foundation
 import SandboxWatchKit
 
-enum WatchCommands {
-    /// One poll. Returns the line to show, or `nil` when nothing changed.
-    ///
-    /// The loop lives in the command; this is the whole decision, so it is testable with no
-    /// timing — and it is exactly the call the menu bar app needs.
-    static func pollOnce(
-        sandbox: String,
-        client: SandboxAPIClient,
-        liaison: LiaisonStore,
-        at now: Date = Date()
-    ) async throws -> String? {
-        let findings = await Doctor(client: client).diagnose()
-        let observed = Set(findings.map(\.kind))
-
-        let decision = LiaisonMonitor.decide(
-            observed: observed, previous: try liaison.state(for: sandbox), at: now)
-        try liaison.setState(decision.state, for: sandbox)
-
-        guard decision.transition != nil else { return nil }
-
-        let formatter = ISO8601DateFormatter()
-        let headlines = findings.map(\.headline).joined(separator: "; ")
-        return "!! \(formatter.string(from: now))  \(sandbox)  \(headlines)"
-    }
-}
-
 struct WatchCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "watch",
@@ -40,10 +14,15 @@ struct WatchCommand: AsyncParsableCommand {
     func run() async throws {
         let client = try liveClient(for: name)
         let liaison = LiaisonStore()
+        // Its own cursor: moving the one `sbw changes` uses would make a manual run show
+        // nothing. Spec 6.3, amended 2026-09-18.
+        let cursors = CursorStore(directory: "~/.config/sbw/cursors-watch")
 
         repeat {
-            if let line = try await WatchCommands.pollOnce(
-                sandbox: name, client: client, liaison: liaison) {
+            let now = Date()
+            let report = try await SandboxWatcher.poll(
+                sandbox: name, client: client, liaison: liaison, cursors: cursors, at: now)
+            if let line = SandboxWatcher.render(report, sandbox: name, at: now) {
                 print(line)
             }
             if once { return }

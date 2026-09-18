@@ -36,32 +36,37 @@ final class WatchCommandTests: XCTestCase {
     }
     """
 
+    private var cursors: CursorStore { CursorStore(directory: directory + "/cursors-watch") }
+
+    private func line(_ mock: MockHTTPClient, _ store: LiaisonStore, at now: Date) async throws -> String? {
+        let report = try await SandboxWatcher.poll(
+            sandbox: "dev", client: client(mock), liaison: store, cursors: cursors, at: now)
+        return SandboxWatcher.render(report, sandbox: "dev", at: now)
+    }
+
     func testFirstPollSaysNothing() async throws {
         let mock = MockHTTPClient()
         mock.stub(path: "/api/v1/snapshot", status: 200, json: healthyJSON)
+        mock.stub(path: "/api/v1/changes", status: 200, json: #"{"limit":50,"events":[]}"#)
 
-        let line = try await WatchCommands.pollOnce(
-            sandbox: "dev", client: client(mock), liaison: LiaisonStore(directory: directory),
-            at: Date(timeIntervalSince1970: 1_789_000_000))
+        let out = try await line(mock, LiaisonStore(directory: directory), at: Date(timeIntervalSince1970: 1_789_000_000))
 
-        XCTAssertNil(line)
+        XCTAssertNil(out)
     }
 
     func testTwoFailedPollsAnnounceTheTransitionOnce() async throws {
         let mock = MockHTTPClient()
         mock.stub(path: "/api/v1/snapshot", status: 200, json: healthyJSON)
+        mock.stub(path: "/api/v1/changes", status: 200, json: #"{"limit":50,"events":[]}"#)
         let store = LiaisonStore(directory: directory)
         let t0 = Date(timeIntervalSince1970: 1_789_000_000)
 
-        _ = try await WatchCommands.pollOnce(sandbox: "dev", client: client(mock), liaison: store, at: t0)
+        _ = try await line(mock, store, at: t0)
 
         mock.stub(path: "/api/v1/snapshot", status: 401, json: "{}")
-        let first = try await WatchCommands.pollOnce(
-            sandbox: "dev", client: client(mock), liaison: store, at: t0.addingTimeInterval(300))
-        let second = try await WatchCommands.pollOnce(
-            sandbox: "dev", client: client(mock), liaison: store, at: t0.addingTimeInterval(600))
-        let third = try await WatchCommands.pollOnce(
-            sandbox: "dev", client: client(mock), liaison: store, at: t0.addingTimeInterval(900))
+        let first = try await line(mock, store, at: t0.addingTimeInterval(300))
+        let second = try await line(mock, store, at: t0.addingTimeInterval(600))
+        let third = try await line(mock, store, at: t0.addingTimeInterval(900))
 
         XCTAssertNil(first, "one reading is not evidence")
         XCTAssertNotNil(second)

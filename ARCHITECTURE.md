@@ -96,5 +96,13 @@ convention.
 |---|---|---|
 | `~/.config/sbw/sandboxes.yaml` | Inventaire : nom, URL, notes | non |
 | Keychain `fr.lauriat.sandboxwatch` | Un token par sandbox | **oui** |
-| `~/.config/sbw/cursors/<nom>.json` | Dernier changement vu | non |
+| `~/.config/sbw/cursors/<nom>.json` | Dernier changement rapporté par `sbw changes` | non |
+| `~/.config/sbw/cursors-watch/<nom>.json` | Dernier changement rapporté par `sbw watch` | non |
+| `~/.config/sbw/cursors-app/<nom>.json` *(lot A2b)* | Dernier changement rapporté par l'app | non |
+| `~/.config/sbw/liaison/<nom>.json` | État de liaison confirmé, pour l'anti-rebond | non |
 | `~/.config/sbw/actions.jsonl` *(lot 3)* | Journal des actions d'écriture | non |
+
+Trois lecteurs, trois notions de « depuis la dernière fois que j'ai regardé ». Un curseur partagé
+laisserait un watch en tâche de fond consommer ce qu'un `sbw changes` manuel était dû — la surface
+qui lit le plus souvent ferait taire les autres. `SandboxWatcher.poll` reçoit donc son `CursorStore`
+en paramètre et n'en choisit jamais un lui-même.

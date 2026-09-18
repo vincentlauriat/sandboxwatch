@@ -59,6 +59,13 @@ is reached. Silent truncation is the bug being avoided.
 executable half of `../AzureSandboxManager/docs/api.md`. A server change should break a test,
 not a screen.
 
+**The Kit returns values; the surface decides policy.** `SandboxWatcher.poll` carries every new
+event, including the quiet ones, and takes its `CursorStore` as a parameter. Pre-filtering in the
+Kit would impose one policy on the CLI and the app at once; a shared cursor would let whichever
+surface polls most often silence the others — a background `sbw watch` would consume what a manual
+`sbw changes` was owed. Anything an Xcode app target must call belongs in `SandboxWatchKit`: an app
+target can link the library product, never the `sbw` executable target.
+
 **`SandboxJSON.decoder`, never `JSONDecoder` with `.iso8601`.** The built-in strategy rejects
 fractional seconds and the server emits them; swapping it back fails on every snapshot.
 
@@ -76,17 +83,19 @@ Never let a test reach the real Keychain; the suite must not prompt for a login 
 |---|---|---|
 | `~/.config/sbw/sandboxes.yaml` | Inventory: name, URL, notes | no |
 | Keychain `fr.lauriat.sandboxwatch` | One token per sandbox | **yes** |
-| `~/.config/sbw/cursors/<name>.json` | Last change seen | no |
+| `~/.config/sbw/cursors/<name>.json` | Last change `sbw changes` reported | no |
+| `~/.config/sbw/cursors-watch/<name>.json` | Last change `sbw watch` reported | no |
+| `~/.config/sbw/liaison/<name>.json` | Confirmed link state, for the debounce | no |
 
 The token never goes in the YAML and never travels as a command-line argument (shell history,
 process table) — `sbw sandbox add` reads it from stdin with echo off.
 
 ## What exists
 
-Batch 1 only: the Kit and the read-only CLI (`sandbox add/list/remove`, `status`, `doctor`,
-`changes`). `AzRunner`, `ActionJournal` and the SwiftUI app appear in `ARCHITECTURE_EN.md`
-because the Kit's shape assumes them — they are not in `Sources/`. Batches: 2 = transition
-detection + menu bar, 3 = `az` actions behind three guards (subscription, freshness,
+Batches 1, A1 and A2a: the Kit, the read-only CLI (`sandbox add/list/remove`, `status`, `doctor`,
+`changes`) and `sbw watch`. `AzRunner`, `ActionJournal` and the SwiftUI app appear in
+`ARCHITECTURE_EN.md` because the Kit's shape assumes them — they are not in `Sources/`.
+Remaining: A2b = menu bar app, 3 = `az` actions behind three guards (subscription, freshness,
 non-interactivity), 4 = control center.
 
 Design and rationale: `docs/superpowers/specs/2026-09-16-sandboxwatch-design.md` and
