@@ -10,8 +10,15 @@ swift test                                    # full suite; touches no network, 
 swift test --filter DoctorTests               # one test class
 swift test --filter SandboxWatchKitTests.DoctorTests/testStaleSnapshotIsReportedBeforeItsDeniedSections
 swift build -c release                        # what CI also runs, and what the installed `sbw` points at
+./Scripts/build-cli.sh                        # build -c release, then sign sbw with the stable identity
 ./Scripts/build-app.sh                        # generate, build and Developer ID-sign App/stage/SandboxWatch.app
 ```
+
+**Use `Scripts/build-cli.sh`, not a bare `swift build -c release`, whenever `sbw` will be run
+against a real sandbox.** A SwiftPM binary is unsigned, so every rebuild gives it a new code
+identity; the Keychain ACL on the token stops matching and the next `sbw` call blocks on a
+SecurityAgent dialog — which, in a non-interactive shell, means it blocks forever. This happened
+for real on 2026-09-18.
 
 `Scripts/build-app.sh` signs with `Developer ID Application: Vincent LAURIAT (KFLACS69T9)` and
 Hardened Runtime. **Never change `PRODUCT_BUNDLE_IDENTIFIER`** (`fr.lauriat.sandboxwatch`): the

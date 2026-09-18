@@ -59,6 +59,8 @@ jamais rien modifier.
 | `AzRunner` | L'argv exact d'`az`, en un seul endroit. | `ProcessRunner` |
 | `ActionGuards` | Les trois gardes, sous forme de valeurs. | `ProcessRunner`, `SandboxAPIClient` |
 | `ActionJournal` | Journal local append-only des actions, refus compris. | — |
+| `SandboxAction` | Une action d'écriture de bout en bout : gardes, texte de confirmation, journal. | `ActionGuards`, `AzRunner`, `ActionJournal` |
+| `OverviewRow` | Une ligne de centre de contrôle par sandbox. Les compteurs sont optionnels exprès. | `WatchPresentation` |
 | `sbw` | CLI mince au-dessus du Kit. | ArgumentParser |
 | `App` *(lots 2 et 4)* | Menu bar + control center, linke le Kit en local. | SwiftUI |
 
@@ -101,7 +103,12 @@ convention.
 | `~/.config/sbw/cursors-app/<nom>.json` | Dernier changement rapporté par l'app | non |
 | `~/.config/sbw/liaison/<nom>.json` | État de liaison confirmé de `sbw watch`, pour l'anti-rebond | non |
 | `~/.config/sbw/liaison-app/<nom>.json` | État de liaison confirmé de l'app | non |
-| `~/.config/sbw/actions.jsonl` | Journal des actions, refus compris | non |
+| `~/.config/sbw/actions.jsonl` | Journal des actions, refus compris — **un seul, partagé** | non |
+
+Le journal n'est volontairement **pas** découpé par surface, contrairement aux curseurs et à l'état
+de liaison. Un curseur se consomme : la surface qui l'avance prive les autres. Une entrée de
+journal ne se consomme pas, et ce qu'on veut est justement une trace unique de tout ce qui a été
+fait à la sandbox, quelle que soit la surface qui l'a fait.
 
 ### Les trois gardes, dans cet ordre
 

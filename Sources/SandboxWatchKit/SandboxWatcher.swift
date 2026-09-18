@@ -12,6 +12,19 @@ public struct SandboxWatchReport {
     /// The change log moved by more than one page: some events are missing from `newEvents`.
     public let overflowed: Bool
 
+    /// A surface builds one of these directly for what it learns without polling — a sandbox with
+    /// no token stored, or a client that could not be constructed at all. Those still deserve a
+    /// row and an icon rather than silence.
+    public init(
+        findings: [Doctor.Finding], transition: LiaisonTransition?,
+        newEvents: [ChangeEvent], overflowed: Bool
+    ) {
+        self.findings = findings
+        self.transition = transition
+        self.newEvents = newEvents
+        self.overflowed = overflowed
+    }
+
     /// Nothing to announce. A steady state with no new events.
     public var isSilent: Bool { transition == nil && newEvents.isEmpty && !overflowed }
 }
