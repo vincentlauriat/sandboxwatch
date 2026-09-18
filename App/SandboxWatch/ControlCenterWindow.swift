@@ -14,7 +14,7 @@ final class ControlCenterWindow: NSObject, NSWindowDelegate {
     private var window: NSWindow?
 
     /// One window, reused. A second click on the menu item raises the one that exists.
-    func show(rows: [OverviewRow], refresh: @escaping () -> Void) {
+    func show(_ content: ControlCenterView) {
         if let window {
             activate(window)
             return
@@ -28,7 +28,7 @@ final class ControlCenterWindow: NSObject, NSWindowDelegate {
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered, defer: false)
         window.title = String(localized: "SandboxWatch")
-        window.contentView = NSHostingView(rootView: OverviewView(rows: rows, refresh: refresh))
+        window.contentView = NSHostingView(rootView: content)
         window.center()
         window.setFrameAutosaveName("ControlCenter")
         window.isReleasedWhenClosed = false
@@ -38,8 +38,11 @@ final class ControlCenterWindow: NSObject, NSWindowDelegate {
         activate(window)
     }
 
-    func update(rows: [OverviewRow], refresh: @escaping () -> Void) {
-        window?.contentView = NSHostingView(rootView: OverviewView(rows: rows, refresh: refresh))
+    /// A poll finished while the window is open. Only replace the contents if there is a window;
+    /// building one here would pop it open behind the operator's back.
+    func update(_ content: ControlCenterView) {
+        guard window != nil else { return }
+        window?.contentView = NSHostingView(rootView: content)
     }
 
     private func activate(_ window: NSWindow) {
