@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// What the control center shows. Built by the same poll that drives the icon, so the window
     /// and the menu bar can never disagree about a sandbox.
     private var rows: [OverviewRow] = []
+    /// Kept so the tabs open without asking the sandbox again.
+    private var details: [String: SandboxDetailData] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         show(icon: .healthy, checking: true)
@@ -48,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let sandboxes = (try? store.load().sandboxes) ?? []
         var results: [(String, String, WatchPresentation.StatusIcon)] = []
         var overview: [OverviewRow] = []
+        var collected: [String: SandboxDetailData] = [:]
 
         for sandbox in sandboxes {
             guard let token = (try? tokens.token(for: sandbox.name)) ?? nil else {
@@ -79,6 +82,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     overview.append(OverviewRow.make(
                         sandbox: sandbox.name, snapshot: snapshot.snapshot,
                         ageSeconds: snapshot.ageSeconds, report: report))
+                    collected[sandbox.name] = SandboxDetailData(
+                        snapshot: snapshot.snapshot,
+                        ageSeconds: snapshot.ageSeconds,
+                        findings: report.findings,
+                        changes: report.newEvents,
+                        apps: snapshot.snapshot.apps.fold(
+                            ok: { $0.map(\.name) }, unavailable: { _ in [] }))
                 } else {
                     overview.append(OverviewRow.unreachable(sandbox: sandbox.name, report: report))
                 }
@@ -95,10 +105,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         lines = results
         rows = overview
+        details = collected
         show(icon: worst(of: results.map(\.2)), checking: false)
-        controlCenter.update(rows: rows) { [weak self] in
-            Task { @MainActor in await self?.pollAll() }
-        }
+        controlCenter.update(controlCenterView())
     }
 
     /// One icon for several sandboxes: the worst state wins. Averaging would hide the dead one,
@@ -172,9 +181,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openControlCenter() {
-        controlCenter.show(rows: rows) { [weak self] in
-            Task { @MainActor in await self?.pollAll() }
-        }
+        controlCenter.show(controlCenterView())
+    }
+
+    private func controlCenterView() -> ControlCenterView {
+        ControlCenterView(
+            rows: rows,
+            details: details,
+            actions: { [weak self] sandbox, apps in
+                ActionsTabView.Model(
+                    sandbox: sandbox,
+                    apps: apps,
+                    // Built lazily and per call, so a missing token is a refusal shown in the tab
+                    // rather than a crash when the window opens.
+                    client: { self?.client(for: sandbox) },
+                    runner: SystemProcessRunner(),
+                    journal: ActionJournal())
+            },
+            refresh: { [weak self] in
+                Task { @MainActor in await self?.pollAll() }
+            })
+    }
+
+    /// One place the app turns a sandbox name into a client, so the poll and the Actions tab
+    /// cannot disagree about which URL or which token they are using.
+    private func client(for sandbox: String) -> SandboxAPIClient? {
+        guard let entry = (try? store.load().sandboxes.first { $0.name == sandbox }) ?? nil,
+              let token = (try? tokens.token(for: sandbox)) ?? nil
+        else { return nil }
+        return SandboxAPIClient(baseURL: entry.url, token: token, http: URLSessionHTTPClient())
     }
 
     @objc private func refreshNow() {
