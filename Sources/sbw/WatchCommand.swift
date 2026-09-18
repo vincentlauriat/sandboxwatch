@@ -2,32 +2,6 @@ import ArgumentParser
 import Foundation
 import SandboxWatchKit
 
-enum WatchCommands {
-    /// One poll. Returns the line to show, or `nil` when nothing changed.
-    ///
-    /// The loop lives in the command; this is the whole decision, so it is testable with no
-    /// timing — and it is exactly the call the menu bar app needs.
-    static func pollOnce(
-        sandbox: String,
-        client: SandboxAPIClient,
-        liaison: LiaisonStore,
-        at now: Date = Date()
-    ) async throws -> String? {
-        let findings = await Doctor(client: client).diagnose()
-        let observed = Set(findings.map(\.kind))
-
-        let decision = LiaisonMonitor.decide(
-            observed: observed, previous: try liaison.state(for: sandbox), at: now)
-        try liaison.setState(decision.state, for: sandbox)
-
-        guard decision.transition != nil else { return nil }
-
-        let formatter = ISO8601DateFormatter()
-        let headlines = findings.map(\.headline).joined(separator: "; ")
-        return "!! \(formatter.string(from: now))  \(sandbox)  \(headlines)"
-    }
-}
-
 struct WatchCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "watch",
@@ -42,7 +16,7 @@ struct WatchCommand: AsyncParsableCommand {
         let liaison = LiaisonStore()
 
         repeat {
-            if let line = try await WatchCommands.pollOnce(
+            if let line = try await SandboxWatcher.pollOnce(
                 sandbox: name, client: client, liaison: liaison) {
                 print(line)
             }
