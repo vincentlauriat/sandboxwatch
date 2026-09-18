@@ -166,4 +166,37 @@ final class SandboxWatcherTests: XCTestCase {
         XCTAssertNotNil(try watch.mark(for: "dev"))
         XCTAssertNil(try manual.mark(for: "dev"), "the manual cursor must not have moved")
     }
+
+    // Two surfaces, two liaison stores. `poll` persists its decision unconditionally, so a shared
+    // store would let whichever polled first confirm the new state — and the second would compare
+    // the same set against itself, decide nothing changed, and stay silent. A missed transition is
+    // the founding incident of this project, so this is the sharing bug that matters most.
+    func testTwoSurfacesWithTheirOwnLiaisonStoresBothSeeTheTransition() async throws {
+        let mock = MockHTTPClient()
+        mock.stub(path: "/api/v1/snapshot", status: 200, json: healthyJSON)
+        mock.stub(path: "/api/v1/changes", status: 200, json: changesJSON(""))
+
+        let watchLiaison = LiaisonStore(directory: directory + "/liaison")
+        let appLiaison = LiaisonStore(directory: directory + "/liaison-app")
+
+        func poll(_ store: LiaisonStore, at now: Date) async throws -> LiaisonTransition? {
+            try await SandboxWatcher.poll(
+                sandbox: "dev", client: client(mock), liaison: store,
+                cursors: CursorStore(directory: directory + "/c-\(ObjectIdentifier(store).hashValue)"),
+                at: now).transition
+        }
+
+        _ = try await poll(watchLiaison, at: t0)
+        _ = try await poll(appLiaison, at: t0)
+
+        mock.stub(path: "/api/v1/snapshot", status: 401, json: "{}")
+        _ = try await poll(watchLiaison, at: t0.addingTimeInterval(300))
+        _ = try await poll(appLiaison, at: t0.addingTimeInterval(300))
+        let watchSaw = try await poll(watchLiaison, at: t0.addingTimeInterval(600))
+        let appSaw = try await poll(appLiaison, at: t0.addingTimeInterval(600))
+
+        XCTAssertNotNil(watchSaw, "sbw watch must announce the transition")
+        XCTAssertNotNil(appSaw, "and so must the app, from its own store")
+        XCTAssertEqual(watchSaw, appSaw)
+    }
 }

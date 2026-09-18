@@ -98,11 +98,18 @@ convention.
 | Keychain `fr.lauriat.sandboxwatch` | Un token par sandbox | **oui** |
 | `~/.config/sbw/cursors/<nom>.json` | Dernier changement rapporté par `sbw changes` | non |
 | `~/.config/sbw/cursors-watch/<nom>.json` | Dernier changement rapporté par `sbw watch` | non |
-| `~/.config/sbw/cursors-app/<nom>.json` *(lot A2b)* | Dernier changement rapporté par l'app | non |
-| `~/.config/sbw/liaison/<nom>.json` | État de liaison confirmé, pour l'anti-rebond | non |
+| `~/.config/sbw/cursors-app/<nom>.json` | Dernier changement rapporté par l'app | non |
+| `~/.config/sbw/liaison/<nom>.json` | État de liaison confirmé de `sbw watch`, pour l'anti-rebond | non |
+| `~/.config/sbw/liaison-app/<nom>.json` | État de liaison confirmé de l'app | non |
 | `~/.config/sbw/actions.jsonl` *(lot 3)* | Journal des actions d'écriture | non |
 
 Trois lecteurs, trois notions de « depuis la dernière fois que j'ai regardé ». Un curseur partagé
 laisserait un watch en tâche de fond consommer ce qu'un `sbw changes` manuel était dû — la surface
 qui lit le plus souvent ferait taire les autres. `SandboxWatcher.poll` reçoit donc son `CursorStore`
 en paramètre et n'en choisit jamais un lui-même.
+
+**L'état de liaison suit la même règle, un cran plus haut, et l'enjeu y est plus grand.** `poll`
+persiste sa décision sans condition : un `liaison/` partagé laisserait la surface qui relève en
+premier confirmer le nouvel état, et la seconde comparerait le même ensemble à lui-même, conclurait
+que rien n'a changé, et se tairait. Un événement manqué est une gêne. Une transition manquée, c'est
+l'incident fondateur du projet.
