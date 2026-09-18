@@ -74,8 +74,8 @@ public enum ActionGuards {
         let account: ProcessResult
         do {
             account = try await runner.run(
-                azExecutable,
-                ["account", "show", "--query", "id", "--output", "tsv", "--only-show-errors"])
+                AzRunner.executable,
+                AzRunner.accountShowArguments)
         } catch {
             return .failure(.notLoggedIn(error.localizedDescription))
         }
@@ -118,6 +118,4 @@ public enum ActionGuards {
             refreshSkipped: skipped))
     }
 
-    /// `az` is resolved through `env` so a Homebrew install and an MSI install both work.
-    public static let azExecutable = "/usr/bin/env"
 }

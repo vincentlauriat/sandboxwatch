@@ -43,7 +43,7 @@ final class ActionGuardsTests: XCTestCase {
         http.stub(path: "/api/v1/refresh", status: 200, json: json, headers: refreshHeaders)
 
         let az = MockProcessRunner()
-        az.script(["account", "show"], stdout: "\(subscription)\n")
+        az.script(["az", "account", "show"], stdout: "\(subscription)\n")
         return (http, az)
     }
 
@@ -53,13 +53,25 @@ final class ActionGuardsTests: XCTestCase {
         await ActionGuards.check(sandbox: "dev", app: "api", client: client(http), runner: az)
     }
 
+    // The executable is `/usr/bin/env`, so the argv has to name `az` itself. Asserting only the
+    // subcommand let `env account show` — a command that does not exist — pass a whole suite.
+    func testThePreflightArgvNamesAzItself() async {
+        let (http, az) = healthyWorld()
+
+        _ = await check(http, az)
+
+        XCTAssertEqual(az.invocations.first, [
+            "az", "account", "show", "--query", "id", "--output", "tsv", "--only-show-errors",
+        ])
+    }
+
     // MARK: - Guard 1, subscription
 
     // `az` points wherever `az account set` last left it, which has nothing to do with the sandbox
     // you are looking at. Without this, `sbw restart api` restarts a same-named web app elsewhere.
     func testAMismatchedSubscriptionRefusesAndNamesBothValues() async {
         let (http, az) = healthyWorld()
-        az.script(["account", "show"], stdout: "11111111-2222-3333-4444-555555555555\n")
+        az.script(["az", "account", "show"], stdout: "11111111-2222-3333-4444-555555555555\n")
 
         let result = await check(http, az)
 
@@ -78,7 +90,7 @@ final class ActionGuardsTests: XCTestCase {
     // because nothing should touch the network until `az` has proved it can answer at all.
     func testNotBeingLoggedInRefusesBeforeAnythingElseRuns() async {
         let (http, az) = healthyWorld()
-        az.script(["account", "show"], exitCode: 1,
+        az.script(["az", "account", "show"], exitCode: 1,
                   stderr: "ERROR: Please run 'az login' to setup account.")
 
         let result = await check(http, az)

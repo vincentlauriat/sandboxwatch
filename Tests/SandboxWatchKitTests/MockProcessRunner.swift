@@ -30,5 +30,9 @@ final class MockProcessRunner: ProcessRunner, @unchecked Sendable {
     }
 
     /// The question every guard test asks: did anything reach the web app before the refusal?
-    var didTouchAWebApp: Bool { invocations.contains { $0.first == "webapp" } }
+    ///
+    /// The argv begins with `az` — the executable is `/usr/bin/env` — so this looks at the
+    /// subcommand, not at `argv[0]`. It read `$0.first` until 2026-09-18, which could never be
+    /// true and made every `XCTAssertFalse(didTouchAWebApp)` vacuous.
+    var didTouchAWebApp: Bool { invocations.contains { $0.dropFirst().first == "webapp" } }
 }

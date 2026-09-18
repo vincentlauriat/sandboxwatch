@@ -10,6 +10,7 @@ struct SBW: AsyncParsableCommand {
         commandName: "sbw",
         abstract: "Read the state of your Azure sandboxes, and what changed since last time.",
         subcommands: [SandboxCommand.self, StatusCommand.self, DoctorCommand.self,
-                      ChangesCommand.self, WatchCommand.self]
+                      ChangesCommand.self, WatchCommand.self,
+                      StartCommand.self, StopCommand.self, RestartCommand.self]
     )
 }
