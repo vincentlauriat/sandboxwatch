@@ -59,6 +59,8 @@ bounded to a Reader role. Writing uses Vincent's own `az` login. The token can n
 | `AzRunner` | The exact `az` argv, in one place. | `ProcessRunner` |
 | `ActionGuards` | The three guards, as values. | `ProcessRunner`, `SandboxAPIClient` |
 | `ActionJournal` | Append-only local log of write actions, refusals included. | — |
+| `SandboxAction` | One write action end to end: guards, confirmation text, journal. | `ActionGuards`, `AzRunner`, `ActionJournal` |
+| `OverviewRow` | One control-center line per sandbox. Counts are optional on purpose. | `WatchPresentation` |
 | `sbw` | Thin CLI over the Kit. | ArgumentParser |
 | `App` *(batches 2 and 4)* | Menu bar + control center, links the Kit locally. | SwiftUI |
 
@@ -99,7 +101,11 @@ open a device-code flow that hangs forever with no TTY). Each guard is a test, n
 | `~/.config/sbw/cursors-app/<name>.json` | Last change the app reported | no |
 | `~/.config/sbw/liaison/<name>.json` | Confirmed link state for `sbw watch`, for debounce | no |
 | `~/.config/sbw/liaison-app/<name>.json` | Confirmed link state for the app | no |
-| `~/.config/sbw/actions.jsonl` | Write-action journal, refusals included | no |
+| `~/.config/sbw/actions.jsonl` | Write-action journal, refusals included — **one, shared** | no |
+
+The journal is deliberately *not* split per surface, unlike the cursors and the liaison state. A
+cursor is consumed: one reader advancing it robs another. Nobody consumes a journal entry, and the
+point is a single record of everything done to the sandbox, whichever surface did it.
 
 ### The three guards, in this order
 
