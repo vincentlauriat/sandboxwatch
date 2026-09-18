@@ -31,11 +31,7 @@ public protocol ProcessRunner: Sendable {
 /// The real one, and — like `KeychainTokenStore` and `URLSessionHTTPClient` — the one the suite
 /// never executes. It is proved by use.
 public final class SystemProcessRunner: ProcessRunner, @unchecked Sendable {
-    public let executable: String
-
-    public init(executable: String = "/usr/bin/env") {
-        self.executable = executable
-    }
+    public init() {}
 
     /// An argv array, never a shell command string. A sandbox name and an app name come from the
     /// command line; a string handed to `sh -c` would let one of them become a second command.

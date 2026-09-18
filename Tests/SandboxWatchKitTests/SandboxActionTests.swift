@@ -1,8 +1,7 @@
 import XCTest
 @testable import SandboxWatchKit
-@testable import sbw
 
-final class ActionCommandsTests: XCTestCase {
+final class SandboxActionTests: XCTestCase {
     private let base = URL(string: "https://dev.azurewebsites.net")!
     private let subscription = "3e0041cf-c56e-447a-917f-15d5ac615f6f"
     private var journalPath: String!
@@ -51,13 +50,13 @@ final class ActionCommandsTests: XCTestCase {
     ) async -> String {
         let client = SandboxAPIClient(baseURL: base, token: "t", http: http)
         let store = ActionJournal(path: journalPath)
-        switch await ActionCommands.prepare(sandbox: "dev", app: app, client: client, runner: az) {
+        switch await SandboxAction.prepare(sandbox: "dev", app: app, client: client, runner: az) {
         case .failure(let refusal):
-            ActionCommands.journal(
+            SandboxAction.journal(
                 refusal, sandbox: "dev", app: app, action: .restart, journal: store)
-            return ActionCommands.render(refusal)
+            return SandboxAction.render(refusal)
         case .success(let context):
-            return await ActionCommands.perform(
+            return await SandboxAction.perform(
                 sandbox: "dev", app: app, action: .restart, context: context,
                 runner: az, journal: store, confirmed: confirmed)
         }
@@ -115,12 +114,12 @@ final class ActionCommandsTests: XCTestCase {
     func testTheConfirmationShowsTheAgeAndTheCurrentState() async {
         let (http, az) = world()
 
-        guard case .success(let context) = await ActionCommands.prepare(
+        guard case .success(let context) = await SandboxAction.prepare(
             sandbox: "dev", app: "api",
             client: SandboxAPIClient(baseURL: base, token: "t", http: http), runner: az)
         else { return XCTFail("expected a context") }
 
-        let output = ActionCommands.describe(context, sandbox: "dev", app: "api", action: .restart)
+        let output = SandboxAction.describe(context, sandbox: "dev", app: "api", action: .restart)
 
         XCTAssertTrue(output.contains("Running"), output)
         XCTAssertTrue(output.contains("9"), "the age must be shown: \(output)")
@@ -135,12 +134,12 @@ final class ActionCommandsTests: XCTestCase {
         let az = MockProcessRunner()
         az.script(["az", "account", "show"], stdout: "\(subscription)\n")
 
-        guard case .success(let context) = await ActionCommands.prepare(
+        guard case .success(let context) = await SandboxAction.prepare(
             sandbox: "dev", app: "api",
             client: SandboxAPIClient(baseURL: base, token: "t", http: http), runner: az)
         else { return XCTFail("expected a context") }
 
-        let output = ActionCommands.describe(context, sandbox: "dev", app: "api", action: .restart)
+        let output = SandboxAction.describe(context, sandbox: "dev", app: "api", action: .restart)
 
         XCTAssertTrue(output.lowercased().contains("not refreshed"), output)
     }

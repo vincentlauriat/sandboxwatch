@@ -43,12 +43,34 @@ final class ProcessRunnerTests: XCTestCase {
         XCTAssertFalse(mock.didTouchAWebApp)
     }
 
-    // `SystemProcessRunner` is the one type here the suite never executes — like
-    // `KeychainTokenStore` and `URLSessionHTTPClient`, it is proved by use. What can be asserted
-    // without spawning anything is that it never goes through a shell.
-    func testTheRealRunnerTakesAnArgvArrayAndNeverAShell() {
-        XCTAssertFalse("\(SystemProcessRunner.self)".contains("Shell"))
-        let runner = SystemProcessRunner(executable: "/opt/homebrew/bin/az")
-        XCTAssertEqual(runner.executable, "/opt/homebrew/bin/az")
+    // MARK: - The real runner
+
+    // `/bin/echo` is neither the network, the Keychain, nor `az`, so running it breaks no rule —
+    // and it proves what matters: the argv reaches the process as separate words, stdout comes
+    // back, and the exit code is real. The previous test here asserted that a type's own name did
+    // not contain "Shell", which could not fail.
+    func testTheRealRunnerPassesArgvAsWordsAndCapturesStdout() async throws {
+        let result = try await SystemProcessRunner().run("/bin/echo", ["one two", "three"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.trimmedOutput, "one two three",
+                       "a shell would have split 'one two' into two arguments")
+    }
+
+    func testTheRealRunnerReportsANonZeroExit() async throws {
+        let result = try await SystemProcessRunner().run("/bin/sh", ["-c", "exit 7"])
+        XCTAssertEqual(result.exitCode, 7)
+        XCTAssertFalse(result.succeeded)
+    }
+
+    // The reason `run` drains the pipes before `waitUntilExit`: a child that fills the 64 KB pipe
+    // buffer blocks forever if nobody is reading, and the wait never returns. 200 KB is well past
+    // the buffer, so this test hangs rather than fails if that order is ever reversed.
+    func testAChildThatOutwritesThePipeBufferDoesNotDeadlock() async throws {
+        let result = try await SystemProcessRunner().run(
+            "/bin/dd", ["if=/dev/zero", "bs=1024", "count=200"])
+
+        XCTAssertEqual(result.exitCode, 0)
+        XCTAssertEqual(result.stdout.count, 200 * 1024)
     }
 }
