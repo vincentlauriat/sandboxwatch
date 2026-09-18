@@ -11,11 +11,17 @@ The pair mirrors [Homeport](../../RaspberryTools/Homeport) /
 [HomePortManager](../../RaspberryTools/HomePortManager): an agent on the machine, a manager on the
 Mac.
 
-> **Status: batches 1, A1, A2a and A2b shipped** — `SandboxWatchKit`, the read-only `sbw` CLI,
-> `sbw watch`, and a menu bar agent.
-> Install the CLI: `swift build -c release && ln -sf "$PWD/.build/release/sbw" ~/.local/bin/sbw`.
-> Build and sign the app: `./Scripts/build-app.sh`, then
-> `ditto App/stage/SandboxWatch.app ~/Applications/SandboxWatch.app`.
+> **Status: 0.1.0 released** — the Kit, the `sbw` CLI (reads, `watch`, and
+> `start`/`stop`/`restart`), the menu bar agent and the control center window.
+>
+> **Install the app:** download
+> [`SandboxWatch-0.1.0.dmg`](https://github.com/vincentlauriat/sandboxwatch/releases/latest)
+> and drag it to Applications. Signed with a Developer ID certificate and notarized by Apple.
+>
+> **Install the CLI:** `./Scripts/build-cli.sh && ln -sf "$PWD/.build/release/sbw" ~/.local/bin/sbw`.
+> Use that script rather than a bare `swift build -c release`: an unsigned binary gets a new code
+> identity on every rebuild, and the Keychain then asks for authorisation each time.
+>
 > See [`docs/getting-started.md`](docs/getting-started.md), and
 > [`docs/superpowers/specs/2026-09-16-sandboxwatch-design.md`](docs/superpowers/specs/2026-09-16-sandboxwatch-design.md)
 > for the design the remaining batches follow.
