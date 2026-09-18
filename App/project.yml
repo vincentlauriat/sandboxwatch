@@ -56,6 +56,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: SandboxWatch
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Fixed now and never changed: the Keychain ACL is keyed on the signature *and* this
         # identifier. Changing it costs Vincent another authorisation prompt (measured 2026-09-18).
         PRODUCT_BUNDLE_IDENTIFIER: fr.lauriat.sandboxwatch

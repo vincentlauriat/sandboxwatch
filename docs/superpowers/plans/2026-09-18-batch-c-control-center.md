@@ -45,12 +45,18 @@ why: `frontmost app: loginwindow`. The screen was locked, so macOS refused activ
 passes were spent before that showed up; the lesson is to log `NSWorkspace.shared.frontmostApplication`
 in the *first* pass of any activation spike. Vincent confirms this one interactively.
 
-**The notarization profile does not exist on this machine.** `xcrun notarytool history
---keychain-profile "AppliMacVincentGithub"` returns *"No Keychain password item found"*, and no
-notarytool credential is in the login keychain at all — checked after confirming the keychain was
-unlocked, so this is a real absence and not a locked-keychain artefact. The global `CLAUDE.md`
-says the profile is already in place; on this Mac it is not. Task 3 is blocked on Vincent
-recreating it, which needs an app-specific password that must never be handled here.
+**The notarization profile does exist — an earlier claim here that it did not was wrong.**
+On 2026-09-18, with the screen locked, `xcrun notarytool history --keychain-profile
+"AppliMacVincentGithub"` returned *"No Keychain password item found"* and a keychain dump showed
+no notarytool credential. Both were artefacts of the locked session. `security show-keychain-info`
+answering `no-timeout` was read as "unlocked", and it does not mean that: it reports the lock
+*timeout policy*, not the lock state. The contradicting signal — an unrelated item also being
+unreadable — was explained away instead of followed. Re-run with the screen unlocked, the profile
+lists accepted submissions, and `Scripts/release.sh` notarized successfully on the first try.
+
+The lesson, which is the same one this project keeps teaching: **a negative result from a tool
+needs its own verification before it becomes a fact.** The cheap check was to read a known-present
+item; that check was run, came back negative too, and was dismissed.
 
 ---
 
@@ -129,16 +135,20 @@ func testTheChangesTabCarriesSeverityMarkersMatchingSbwChanges()
 - [ ] **Step 6: FR + EN for every new string.**
 - [ ] **Step 7: Commit** — `feat: per-sandbox tabs, with the Actions tab behind the same guards`.
 
-## Task 3: Release — **needs Vincent before it starts**
+## Task 3: Release — **done**
 
-- [ ] Vincent recreates the notarization profile (`xcrun notarytool store-credentials
-      "AppliMacVincentGithub" --apple-id … --team-id KFLACS69T9`). The app-specific password is
-      never requested or handled here.
-- [ ] `Scripts/release.sh` **calls** `Scripts/build-app.sh` rather than duplicating its signing
-      block, then builds the DMG into `release/`, submits, staples and validates.
-- [ ] Artifacts go in `release/`; `.gitignore` already covers `*.dmg` without a leading slash.
-- [ ] Vincent's rule: *always confirm before creating releases or tags.* A `notarytool submit`
-      uploads the binary to Apple. Ask before the first one; do not fold it into an execution step.
+- [x] `Scripts/release.sh`, modelled on `MacTools/MarkdownViewer/Scripts/release.sh` minus what
+      does not apply (no Sparkle, no appex, so no EdDSA signing and no appcast). It **calls**
+      `Scripts/build-app.sh` rather than duplicating the signing block.
+- [x] DMG in `release/`, with the drag-to-install Finder layout: the app on the left, an
+      `/Applications` alias on the right.
+- [x] Notarized and stapled. `The validate action worked!`
+- [x] `Scripts/make-icon.swift` and an `AppIcon` asset catalog. The agent is `LSUIElement`, so it
+      has no Dock icon at rest — but opening the control center flips it to `.regular`, and that
+      is when the icon is needed. SF Symbols are deliberately not used: Apple's licence does not
+      allow them in an app icon.
+- [ ] Publishing (`gh release create`, a tag) stays a separate, deliberate step. The script prints
+      the command rather than running it: *always confirm before creating releases or tags.*
 
 ## Task 4: Documentation, in the same turn
 
