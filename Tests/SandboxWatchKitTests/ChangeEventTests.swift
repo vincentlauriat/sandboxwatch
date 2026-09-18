@@ -136,3 +136,30 @@ final class ChangeEventTests: XCTestCase {
         XCTAssertEqual(SandboxAPI.fallbackSeverity(forType: "something_new"), .notable)
     }
 }
+
+/// The marker and the detail suffix were each written twice, in `sbw changes` and in `sbw watch`,
+/// and the markers had already drifted apart. These lock the single definition.
+final class SeverityMarkerTests: XCTestCase {
+    func testEveryMarkerHasTheSameWidthSoColumnsLineUp() {
+        let widths = Set(ChangeSeverity.allCases.map(\.marker.count))
+        XCTAssertEqual(widths, [2], "markers of different widths shift the columns after them")
+    }
+
+    func testCriticalIsTheLoudestMarker() {
+        XCTAssertEqual(ChangeSeverity.critical.marker, "!!")
+        XCTAssertEqual(ChangeSeverity.notable.marker, "! ")
+        XCTAssertEqual(ChangeSeverity.informational.marker, "  ")
+    }
+
+    func testTheDetailSuffixCarriesTheServersMessageOrNothing() throws {
+        let withMessage = try SandboxJSON.decoder.decode(ChangeEvent.self, from: Data("""
+        {"at":"2026-09-16T09:18:01.000Z","type":"collector_access_lost","subject":"governance",
+         "detail":{"message":"AuthorizationFailed"}}
+        """.utf8))
+        let without = try SandboxJSON.decoder.decode(ChangeEvent.self, from: Data(
+            #"{"at":"2026-09-16T09:18:01.000Z","type":"role_added","subject":"alice"}"#.utf8))
+
+        XCTAssertEqual(withMessage.detailSuffix, " (AuthorizationFailed)")
+        XCTAssertEqual(without.detailSuffix, "")
+    }
+}

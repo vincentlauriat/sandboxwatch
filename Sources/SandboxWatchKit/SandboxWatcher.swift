@@ -82,14 +82,7 @@ public enum SandboxWatcher {
             lines.append("!! \(formatter.string(from: now))  \(sandbox)  \(headlines)")
         }
         for event in report.newEvents {
-            let marker: String
-            switch event.severity {
-            case .critical: marker = "!!"
-            case .notable: marker = "! "
-            case .informational: marker = "  "
-            }
-            let detail = (event.detail?["message"]?.text).map { " (\($0))" } ?? ""
-            lines.append("\(marker) \(formatter.string(from: event.at))  \(sandbox)  \(event.type)  \(event.subject)\(detail)")
+            lines.append("\(event.severity.marker) \(formatter.string(from: event.at))  \(sandbox)  \(event.type)  \(event.subject)\(event.detailSuffix)")
         }
         return lines.joined(separator: "\n")
     }

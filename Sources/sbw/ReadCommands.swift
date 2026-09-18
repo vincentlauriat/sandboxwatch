@@ -73,14 +73,7 @@ enum ReadCommands {
         } else {
             let formatter = ISO8601DateFormatter()
             for event in scan.newEvents {
-                let flag: String
-                switch event.severity {
-                case .critical: flag = "!!"
-                case .notable: flag = "!"
-                case .informational: flag = " "
-                }
-                let detail = (event.detail?["message"]?.text).map { " (\($0))" } ?? ""
-                lines.append("\(flag) \(formatter.string(from: event.at))  \(event.type)  \(event.subject)\(detail)")
+                lines.append("\(event.severity.marker) \(formatter.string(from: event.at))  \(event.type)  \(event.subject)\(event.detailSuffix)")
             }
         }
         return lines.joined(separator: "\n")

@@ -2,7 +2,7 @@ import Foundation
 
 /// How serious a change is. The server judges this — it knows what a change *is* — and the
 /// client reads its verdict rather than re-deriving one.
-public enum ChangeSeverity: String, Comparable, Codable {
+public enum ChangeSeverity: String, Comparable, Codable, CaseIterable {
     case informational
     case notable
     case critical
@@ -67,6 +67,21 @@ public enum JSONValue: Decodable, Equatable {
     }
 }
 
+extension ChangeSeverity {
+    /// The marker every surface prints, of one fixed width so columns line up.
+    ///
+    /// It lives here because it was written twice — in `sbw changes` and in `sbw watch` — and the
+    /// two had already drifted: `"!"` against `"! "`, which shifted every critical line of
+    /// `sbw changes` one character to the right. One vocabulary means one definition.
+    public var marker: String {
+        switch self {
+        case .critical:      return "!!"
+        case .notable:       return "! "
+        case .informational: return "  "
+        }
+    }
+}
+
 public struct ChangeEvent: Decodable, Equatable {
     public let at: Date
     public let type: String
@@ -93,6 +108,12 @@ public struct ChangeEvent: Decodable, Equatable {
     /// field is a different thing entirely and must not be treated the same way, or a
     /// `collector_access_lost` from an older server would be demoted in the one case that
     /// matters.
+    /// The server's message in parentheses, or nothing. Written the same way by every surface:
+    /// an event naming only an identifier sends the reader back to the terminal.
+    public var detailSuffix: String {
+        (detail?["message"]?.text).map { " (\($0))" } ?? ""
+    }
+
     public var severity: ChangeSeverity {
         guard let publishedSeverity else { return SandboxAPI.fallbackSeverity(forType: type) }
         return ChangeSeverity(rawValue: publishedSeverity) ?? .notable
