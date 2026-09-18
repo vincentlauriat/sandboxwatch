@@ -3,7 +3,7 @@
 Miroir français de `ARCHITECTURE_EN.md`, qui fait foi. Les deux s'éditent dans le même tour.
 
 **Ce qui existe aujourd'hui : le lot 1** — `SandboxWatchKit` et la CLI `sbw` en lecture seule.
-Les lignes marquées *(lot 3)* ou *(lot 4)* sont conçues, pas construites : elles figurent ici
+Les lignes marquées *(lot 4)* sont conçues, pas construites : elles figurent ici
 parce que la forme du Kit les suppose, pas parce qu'on les trouvera dans `Sources/`.
 
 ## Diagrammes
@@ -56,8 +56,9 @@ jamais rien modifier.
 | Modèle `Snapshot` | Des sections dont la charge utile est inatteignable sans passer par leur statut. | — |
 | `ChangeCursor` | Curseur `(at, type, subject)` par sandbox, avec détection de débordement. | — |
 | `Doctor` | Le diagnostic à cinq verdicts. | `SandboxAPIClient` |
-| `AzRunner` *(lot 3)* | Invocation d'`az` avec les trois gardes. | `ProcessRunner`, `SandboxAPIClient` |
-| `ActionJournal` *(lot 3)* | Journal local append-only des actions d'écriture. | — |
+| `AzRunner` | L'argv exact d'`az`, en un seul endroit. | `ProcessRunner` |
+| `ActionGuards` | Les trois gardes, sous forme de valeurs. | `ProcessRunner`, `SandboxAPIClient` |
+| `ActionJournal` | Journal local append-only des actions, refus compris. | — |
 | `sbw` | CLI mince au-dessus du Kit. | ArgumentParser |
 | `App` *(lots 2 et 4)* | Menu bar + control center, linke le Kit en local. | SwiftUI |
 
@@ -67,8 +68,7 @@ Tout effet de bord passe par un protocole, mocké en test :
 
 - `HTTPClient` → `URLSessionHTTPClient` (prod) / `MockHTTPClient` (test)
 - `TokenStore` → `KeychainTokenStore` (prod) / `InMemoryTokenStore` (test)
-- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test) — *lot 3, quand
-  `az` arrivera ; rien dans le lot 1 ne lance de sous-processus*
+- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test)
 
 `swift test` ne touche donc ni le réseau, ni le Keychain, ni `az`. Les deux conséquences à
 énoncer franchement : `KeychainTokenStore` et `URLSessionHTTPClient` sont les seuls types
@@ -101,7 +101,30 @@ convention.
 | `~/.config/sbw/cursors-app/<nom>.json` | Dernier changement rapporté par l'app | non |
 | `~/.config/sbw/liaison/<nom>.json` | État de liaison confirmé de `sbw watch`, pour l'anti-rebond | non |
 | `~/.config/sbw/liaison-app/<nom>.json` | État de liaison confirmé de l'app | non |
-| `~/.config/sbw/actions.jsonl` *(lot 3)* | Journal des actions d'écriture | non |
+| `~/.config/sbw/actions.jsonl` | Journal des actions, refus compris | non |
+
+### Les trois gardes, dans cet ordre
+
+`ActionGuards.check` les exécute toutes les trois avant qu'un seul processus `az webapp` existe,
+et rend un `ActionContext` ou un `ActionRefusal` — une valeur, parce qu'un refus est un état que
+la CLI imprime et que l'app montre dans une feuille.
+
+1. **Non-interactivité**, en premier. `az account show --query id --output tsv --only-show-errors`.
+   C'est le refus le moins cher et le plus certain, et rien ne doit toucher le réseau tant qu'`az`
+   n'a pas prouvé qu'il peut répondre. Mesuré le 2026-09-18 : déconnecté, cette commande sort en 1
+   avec un stdout vide et n'ouvre aucun flux device-code.
+2. **Fraîcheur.** `POST /api/v1/refresh`, puis lecture de *cette* réponse — pas du relevé
+   d'avant. Quand le serveur limite la cadence et renvoie `X-Refresh-Skipped: true`, le drapeau
+   remonte jusqu'à la confirmation. Une invite qui le cacherait laisserait croire à un état
+   fraîchement vérifié, la seule chose que cette garde existe pour garantir.
+3. **Abonnement.** L'`identity.subscriptionId` du relevé contre ce qu'`az` a répondu. `az` pointe
+   là où `az account set` l'a laissé, ce qui n'a rien à voir avec la sandbox affichée.
+   `--subscription` est ensuite passé explicitement à l'action, pour que la garde vérifie une
+   valeur qu'elle utilise aussi.
+
+Les gardes tournent **une seule fois** par action. Le contexte contre lequel on confirme est celui
+contre lequel l'action part ; vérifier deux fois romprait la promesse de la deuxième garde.
+
 
 Trois lecteurs, trois notions de « depuis la dernière fois que j'ai regardé ». Un curseur partagé
 laisserait un watch en tâche de fond consommer ce qu'un `sbw changes` manuel était dû — la surface

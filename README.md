@@ -32,7 +32,7 @@ Mac.
 | ✅ A1 | Transition detection with its debounce, `sbw watch` |
 | ✅ A2a | `SandboxWatcher.poll` in the Kit, one change cursor and one liaison state per surface |
 | ✅ A2b | Menu bar agent: status icon, notifications on transitions and critical events, FR + EN |
-| 3 | `start` / `stop` / `restart` via the local `az` CLI, with subscription, freshness and non-interactivity guards |
+| ✅ B | `start` / `stop` / `restart` via the local `az` CLI, behind three guards, with an append-only journal |
 | 4 | Control center window |
 
 ## Two things that are not like HomePortManager

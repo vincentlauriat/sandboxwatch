@@ -2,9 +2,10 @@
 
 Source of truth. `ARCHITECTURE.md` is its French mirror and must be edited in the same turn.
 
-**What exists today: batch 1** — `SandboxWatchKit` and the read-only `sbw` CLI. Rows below
-marked *(batch 3)* or *(batch 4)* are designed, not built; they are here because the shape of
-the Kit assumes them, not because you will find them in `Sources/`.
+**What exists today: batches 1, A1, A2a, A2b and B** — the Kit, the `sbw` CLI (read commands,
+`watch`, and `start`/`stop`/`restart`), and the menu bar app. Rows below marked *(batch 4)* are
+designed, not built; they are here because the shape of the Kit assumes them, not because you
+will find them in `Sources/`.
 
 ## Diagrams
 
@@ -55,8 +56,9 @@ bounded to a Reader role. Writing uses Vincent's own `az` login. The token can n
 | `Snapshot` model | Sections whose payload is unreachable without switching on their status. | — |
 | `ChangeCursor` | Per-sandbox `(at, type, subject)` cursor, with overflow detection. | — |
 | `Doctor` | The five-verdict diagnosis. | `SandboxAPIClient` |
-| `AzRunner` *(batch 3)* | `az` invocation with the three guards. | `ProcessRunner`, `SandboxAPIClient` |
-| `ActionJournal` *(batch 3)* | Append-only local log of write actions. | — |
+| `AzRunner` | The exact `az` argv, in one place. | `ProcessRunner` |
+| `ActionGuards` | The three guards, as values. | `ProcessRunner`, `SandboxAPIClient` |
+| `ActionJournal` | Append-only local log of write actions, refusals included. | — |
 | `sbw` | Thin CLI over the Kit. | ArgumentParser |
 | `App` *(batches 2 and 4)* | Menu bar + control center, links the Kit locally. | SwiftUI |
 
@@ -66,8 +68,7 @@ Every side effect goes through a protocol, mocked in tests:
 
 - `HTTPClient` → `URLSessionHTTPClient` (prod) / `MockHTTPClient` (test)
 - `TokenStore` → `KeychainTokenStore` (prod) / `InMemoryTokenStore` (test)
-- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test) — *batch 3, when
-  `az` arrives; nothing in batch 1 runs a subprocess*
+- `ProcessRunner` → `SystemProcessRunner` (prod) / `MockProcessRunner` (test)
 
 `swift test` therefore touches no network, no Keychain and no `az`. The two consequences worth
 stating plainly: `KeychainTokenStore` and `URLSessionHTTPClient` are the only types no test
@@ -98,7 +99,30 @@ open a device-code flow that hangs forever with no TTY). Each guard is a test, n
 | `~/.config/sbw/cursors-app/<name>.json` | Last change the app reported | no |
 | `~/.config/sbw/liaison/<name>.json` | Confirmed link state for `sbw watch`, for debounce | no |
 | `~/.config/sbw/liaison-app/<name>.json` | Confirmed link state for the app | no |
-| `~/.config/sbw/actions.jsonl` *(batch 3)* | Write-action journal | no |
+| `~/.config/sbw/actions.jsonl` | Write-action journal, refusals included | no |
+
+### The three guards, in this order
+
+`ActionGuards.check` runs all three before a single `az webapp` process exists, and returns an
+`ActionContext` or an `ActionRefusal` — a value, because a refusal is a state the CLI prints and
+the app shows in a sheet.
+
+1. **Non-interactivity**, first. `az account show --query id --output tsv --only-show-errors`.
+   It is the cheapest and most certain refusal, and nothing should touch the network until `az`
+   has proved it can answer at all. Measured 2026-09-18: logged out, this exits 1 with an empty
+   stdout and opens no device-code flow.
+2. **Freshness.** `POST /api/v1/refresh`, then read *that* response — not the snapshot from before
+   it. When the server rate-limits and returns `X-Refresh-Skipped: true`, the flag reaches the
+   confirmation prompt. A prompt that hid it would imply freshly verified state, which is the one
+   thing this guard exists to guarantee.
+3. **Subscription.** The snapshot's `identity.subscriptionId` against what `az` reported. `az`
+   points wherever `az account set` last left it, which has nothing to do with the sandbox on
+   screen. `--subscription` is then passed explicitly on the action, so the guard checks a value
+   it also uses.
+
+The guards run **once** per action. The context the operator confirms against is the context the
+action departs against; checking twice would break the promise the second guard makes.
+
 
 Three readers, three notions of "since I last looked". One shared cursor would let a background
 watch consume what a manual `sbw changes` was owed — the surface that reads most often would
