@@ -93,5 +93,13 @@ open a device-code flow that hangs forever with no TTY). Each guard is a test, n
 |---|---|---|
 | `~/.config/sbw/sandboxes.yaml` | Inventory: name, URL, notes | no |
 | Keychain `fr.lauriat.sandboxwatch` | One token per sandbox | **yes** |
-| `~/.config/sbw/cursors/<name>.json` | Last change seen | no |
+| `~/.config/sbw/cursors/<name>.json` | Last change `sbw changes` reported | no |
+| `~/.config/sbw/cursors-watch/<name>.json` | Last change `sbw watch` reported | no |
+| `~/.config/sbw/cursors-app/<name>.json` *(batch A2b)* | Last change the app reported | no |
+| `~/.config/sbw/liaison/<name>.json` | Confirmed link state, for debounce | no |
 | `~/.config/sbw/actions.jsonl` *(batch 3)* | Write-action journal | no |
+
+Three readers, three notions of "since I last looked". One shared cursor would let a background
+watch consume what a manual `sbw changes` was owed — the surface that reads most often would
+silence the others. `SandboxWatcher.poll` therefore takes its `CursorStore` as a parameter and
+never picks one itself.

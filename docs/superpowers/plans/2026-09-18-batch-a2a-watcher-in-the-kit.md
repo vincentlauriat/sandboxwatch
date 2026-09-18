@@ -440,15 +440,19 @@ git commit -m "feat: a poll reports its events, and each surface keeps its own c
 
 ## Exit gate for batch A2a
 
-- [ ] `swift test` green, `swift build -c release` clean.
-- [ ] `grep -rn "pollOnce" Sources/` returns nothing: the old entry point is gone, not shadowed.
-- [ ] Against the live sandbox, `sbw watch dev --once` twice in a row: the first establishes both
-      the liaison state and the watch cursor, the second is silent.
-- [ ] `ls ~/.config/sbw/` shows `cursors`, `cursors-watch` and `liaison` as separate directories,
-      and `sbw changes dev` still reports from its own cursor — run it before and after a
-      `sbw watch`, and check the watch did not consume what the manual command was owed.
-- [ ] The rendered line for a real event carries its detail, not an identifier alone. The body of
-      a notification in batch A2b comes from the same report.
+- [x] `swift test` green (131, was 125), `swift build -c release` clean.
+- [x] `grep -rn "pollOnce" Sources/ Tests/` returns nothing: the old entry point is gone, not shadowed.
+- [x] Against the live sandbox, `sbw watch dev --once` twice in a row: the first established the
+      watch cursor at `2026-09-18T02:35:32.957Z`, both were silent — the liaison state was already
+      `healthy` from 2026-09-17, and a steady state says nothing.
+- [x] `ls ~/.config/sbw/` shows `cursors`, `cursors-watch` and `liaison` as separate directories.
+      After the two watches, `sbw changes dev --keep-cursor` still reported **20** events from its
+      own cursor at `2026-09-16T09:08:02Z`, the four probe events the watch had just consumed
+      included, and `cursors/dev.json` was byte-identical before and after.
+- [x] Replaying the real 2026-09-16 incident through the watch cursor, the rendered line carries
+      the full Azure message:
+      `!! 2026-09-16T09:18:01Z  dev  collector_access_lost  governance (The client '…' does not
+      have authorization to perform action 'Microsoft.Authorization/roleAssignments/read' …)`
 
 The fourth item is the one that matters: it is the only check that proves the three readers are
 really independent, and it is the exact bug the 2026-09-18 amendment exists to prevent.
