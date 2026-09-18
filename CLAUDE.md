@@ -63,7 +63,14 @@ A refused token, a server with no snapshot yet, a stale or denied section are `A
 `Section.Outcome` and `Doctor.Finding` — things the CLI and the app display and explain.
 
 **Two identities, on purpose.** Reads use the sandbox token, which the server bounds to Reader.
-Writes (batch 3, `az`) run under Vincent's own login. Never call a mutating route with the token.
+Writes run under Vincent's own login, through `az`. Never call a mutating route with the token.
+
+**Three guards, in this order, all before a single `az webapp` process exists**: non-interactivity
+(`az account show` — the cheapest, most certain refusal, and nothing touches the network until `az`
+has answered), then freshness (`POST /refresh`, and `X-Refresh-Skipped` must reach the prompt),
+then subscription. They run **once** per action: the context confirmed against is the context
+acted against. Each guard has a test proving it returns a refusal *and* that no `webapp` call was
+made — a guard that refuses after spawning `az` has already done the damage.
 
 **The change cursor is `(at, type, subject)`**, not `at` alone, because timestamps tie. A page
 whose oldest event is still newer than the mark means events were lost: `CursorScan.overflowed`,
@@ -88,7 +95,8 @@ fractional seconds and the server emits them; swapping it back fails on every sn
 
 Side effects go through protocols mocked in tests: `HTTPClient` (`URLSessionHTTPClient` /
 `MockHTTPClient`), `TokenStore` (`KeychainTokenStore` / `InMemoryTokenStore`), and — batch 3 —
-`ProcessRunner` for `az`. The consequence worth knowing: `KeychainTokenStore` and
+`ProcessRunner` (`SystemProcessRunner` / `MockProcessRunner`). The consequence worth knowing:
+`SystemProcessRunner`, `KeychainTokenStore` and
 `URLSessionHTTPClient` are the only two types the suite never executes. They are proved by use.
 Never let a test reach the real Keychain; the suite must not prompt for a login password.
 
