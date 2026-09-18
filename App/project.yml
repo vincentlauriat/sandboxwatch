@@ -1,0 +1,70 @@
+name: SandboxWatch
+options:
+  bundleIdPrefix: fr.lauriat
+  developmentLanguage: en
+  deploymentTarget:
+    macOS: "13.0"
+
+# Without this, the fr half of Localizable.xcstrings is compiled but never selectable.
+knownRegions:
+  - en
+  - fr
+  - Base
+
+# The local package. Verified 2026-09-18: an app target links the library product `SandboxWatchKit`
+# and cannot link the `sbw` executable target — which is why `SandboxWatcher` moved into the Kit.
+packages:
+  SandboxWatch:
+    path: ..
+
+# Explicit, or xcodegen generates none and the scheme is lost on every regeneration.
+schemes:
+  SandboxWatch:
+    build:
+      targets:
+        SandboxWatch: all
+    run:
+      config: Release
+
+targets:
+  SandboxWatch:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources:
+      - path: SandboxWatch
+        excludes:
+          - "Info.plist"
+    dependencies:
+      - package: SandboxWatch
+        product: SandboxWatchKit
+    # An `info:` block is mandatory. Without one the build fails with
+    # "Build input file cannot be found: .../Contents/Info.plist" — an error that reads like a
+    # missing source file and is not one.
+    info:
+      path: SandboxWatch/Info.plist
+      properties:
+        CFBundleName: SandboxWatch
+        CFBundleDisplayName: SandboxWatch
+        CFBundleIdentifier: fr.lauriat.sandboxwatch
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSMinimumSystemVersion: "13.0"
+        # A menu bar agent: no dock icon, no main window.
+        LSUIElement: true
+        NSHumanReadableCopyright: "© 2026 Vincent Lauriat"
+    settings:
+      base:
+        PRODUCT_NAME: SandboxWatch
+        # Fixed now and never changed: the Keychain ACL is keyed on the signature *and* this
+        # identifier. Changing it costs Vincent another authorisation prompt (measured 2026-09-18).
+        PRODUCT_BUNDLE_IDENTIFIER: fr.lauriat.sandboxwatch
+        SWIFT_VERSION: "5.9"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        MACOSX_DEPLOYMENT_TARGET: "13.0"
+        # Signing is a separate, explicit step (see Scripts/sign-app.sh): xcodebuild in Release
+        # trips over the com.apple.provenance xattrs lsregister leaves behind.
+        CODE_SIGN_IDENTITY: ""
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGNING_ALLOWED: NO
