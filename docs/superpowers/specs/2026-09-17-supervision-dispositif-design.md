@@ -215,9 +215,29 @@ defined on the **set of kinds**. The seven kinds: `unreachable`, `unauthorised`,
 `serverProblem`, `stale`, `sectionsUnavailable`, `healthy`.
 
 The set of kinds last observed for each sandbox is persisted next to the change cursors, at
-`~/.config/sbw/liaison/<name>.json`, so that `sbw watch` and the app share one memory of what has
-already been announced — exactly as they share one cursor. An unreadable or missing file means
-"no previous observation", which safeguard 1 already defines.
+`~/.config/sbw/liaison/<name>.json`. An unreadable or missing file means "no previous observation",
+which safeguard 1 already defines.
+
+**Each surface keeps its own memory — amended 2026-09-18.** This section first said `sbw watch` and
+the app share one. They must not. The argument is the one already made about the change cursor: if
+`watch` moved the cursor, a manual `sbw changes` would show nothing, "which is a worse bug than the
+gap". The same holds here. With a shared liaison state, one `sbw watch dev --once` run to check
+something consumes the transition and the app never notifies — and a line printed in a terminal
+nobody is reading has not announced anything to a person, while a notification has. Treating the two
+channels as interchangeable is what makes that swallow possible.
+
+`LiaisonStore` and `CursorStore` both take a `directory`, so this is a caller's decision and the Kit
+stays neutral:
+
+| Surface | Change cursor | Liaison state |
+|---|---|---|
+| `sbw changes` | `~/.config/sbw/cursors` | — |
+| `sbw watch` | `~/.config/sbw/cursors-watch` | `~/.config/sbw/liaison` |
+| the app | `~/.config/sbw/cursors-app` | `~/.config/sbw/liaison-app` |
+
+Three readers, three notions of "since I last looked". Announcing the same thing twice on two
+different channels is the acceptable error here; missing it on the channel the operator is actually
+watching is not.
 
 `Doctor` deliberately refuses to reduce its diagnosis to a single verdict (*"reducing that to one
 verdict would hide whichever the operator needed"*). A transition is therefore a change of the
